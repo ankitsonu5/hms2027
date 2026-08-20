@@ -294,7 +294,7 @@ export class PatientPickerComponent implements ControlValueAccessor {
     }
     if (this.selected()?.id === id) return;
     this.api.getOne(id).subscribe({
-      next: (p) => this.selected.set(p),
+      next: (p: any) => this.selected.set(p),
       error: () => this.selected.set(null),
     });
   }
