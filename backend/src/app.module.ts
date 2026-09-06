@@ -11,6 +11,7 @@ import { LaboratoryModule } from './modules/laboratory/laboratory.module';
 import { IpdModule } from './modules/ipd/ipd.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { PharmacyModule } from './modules/pharmacy/pharmacy.module';
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { PharmacyModule } from './modules/pharmacy/pharmacy.module';
     IpdModule,
     BillingModule,
     PharmacyModule,
+    ReportsModule,
 
     // ── Serve Angular build ────────────────────────────────────────────────────
     ServeStaticModule.forRoot({

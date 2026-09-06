@@ -5,6 +5,7 @@ import {
   IsEmail,
   IsOptional,
   IsBoolean,
+  IsObject,
 } from 'class-validator';
 import { PatientCategory, Gender, BloodGroup } from '../patient.entity';
 
@@ -112,4 +113,45 @@ export class CreatePatientDto {
   @IsOptional()
   @IsBoolean()
   locationSharingConsent?: boolean;
+
+  // ── Registration desk fields ──────────────────────────────────────────────
+  @IsOptional()
+  @IsString()
+  designation?: string;
+
+  @IsOptional()
+  @IsString()
+  patientType?: string;
+
+  @IsOptional()
+  @IsString()
+  optionalPatientId?: string;
+
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @IsOptional()
+  @IsString()
+  district?: string;
+
+  @IsOptional()
+  @IsString()
+  country?: string;
+
+  @IsOptional()
+  @IsString()
+  organization?: string;
+
+  @IsOptional()
+  @IsString()
+  phoneBelongsTo?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  whatsappConsent?: boolean;
+
+  @IsOptional()
+  @IsObject()
+  screening?: Record<string, unknown>;
 }

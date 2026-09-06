@@ -1,771 +1,839 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterModule } from '@angular/router';
-import { AuthService } from '../../core/services/auth.service';
+import { RouterLink } from '@angular/router';
+import { ChartConfiguration } from 'chart.js';
+import { ChartComponent, SERIES } from '../../shared/components/chart.component';
+import { ReportsApiService, Overview } from '../../core/services/reports-api.service';
 
-interface StatCard {
-  label: string;
-  value: string | number;
-  delta?: string;
-  deltaUp?: boolean;
-  iconPath: string;
-  bg: string;
-  fg: string;
+const SURFACE = '#ffffff';
+const GRID = '#f1f5f9';
+const INK = '#64748b';
+
+const inr = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  maximumFractionDigits: 0,
+});
+const num = new Intl.NumberFormat('en-IN');
+
+/** '2026-07' → 'Jul-26' */
+function monthLabel(m: string): string {
+  const [y, mo] = m.split('-');
+  const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${names[Number(mo) - 1]}-${y.slice(2)}`;
 }
 
-interface ModuleTile {
+/** Title-case an enum label: SCHEDULE_H → Schedule H */
+function pretty(s: string): string {
+  return s
+    .toLowerCase()
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+interface LegendRow {
+  color: string;
   label: string;
-  sub: string;
-  route: string;
-  iconPath: string;
-  bg: string;
-  fg: string;
+  value: string;
 }
 
 @Component({
   selector: 'hms-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule],
-  template: `
-    <!-- ── Header ── -->
-    <div class="dash-header">
-      <div>
-        <h3 class="dash-title">Good morning, {{ userName }} 👋</h3>
-        <p class="dash-date">{{ today }}</p>
-      </div>
-      <button class="btn btn-secondary btn-sm" (click)="auth.logout()">
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-          <polyline points="16 17 21 12 16 7" />
-          <line x1="21" y1="12" x2="9" y2="12" />
-        </svg>
-        Logout
-      </button>
-    </div>
-
-    <!-- ── Stat Cards ── -->
-    <div class="stat-grid">
-      @for (card of stats; track card.label) {
-        <div class="stat-card" [style.--fg]="card.fg" [style.--bg]="card.bg">
-          <div class="stat-top">
-            <div class="stat-icon">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.75"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path [attr.d]="card.iconPath" />
-              </svg>
-            </div>
-            @if (card.delta) {
-              <span class="stat-delta" [class.up]="card.deltaUp" [class.dn]="!card.deltaUp">
-                {{ card.deltaUp ? '▲' : '▼' }} {{ card.delta }}
-              </span>
-            }
-          </div>
-          <div class="stat-body">
-            <span class="stat-value">{{ card.value }}</span>
-            <span class="stat-label">{{ card.label }}</span>
-          </div>
-        </div>
-      }
-    </div>
-
-    <!-- ── Module Shortcuts ── -->
-    <section>
-      <h6 class="section-title">Quick Access</h6>
-      <div class="module-grid">
-        @for (tile of modules; track tile.route) {
-          <a
-            class="module-tile"
-            [routerLink]="tile.route"
-            [style.--fg]="tile.fg"
-            [style.--bg]="tile.bg"
-          >
-            <div class="module-icon">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.75"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path [attr.d]="tile.iconPath" />
-              </svg>
-            </div>
-            <div class="module-meta">
-              <span class="module-name">{{ tile.label }}</span>
-              <span class="module-sub">{{ tile.sub }}</span>
-            </div>
-            <svg
-              class="module-arrow"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M9 18l6-6-6-6" />
-            </svg>
-          </a>
-        }
-      </div>
-    </section>
-
-    <!-- ── Bottom two-col ── -->
-    <div class="bottom-grid">
-      <!-- OPD Queue -->
-      <section class="card">
-        <div class="card__head">
-          <div class="card-head-left">
-            <div class="card-icon" style="--ci-bg:#dbeafe;--ci-fg:#2563eb">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.75"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-            </div>
-            <h6 class="card__title">Today's OPD Queue</h6>
-          </div>
-          <span class="badge badge-info">{{ appointments.length }} patients</span>
-        </div>
-        <div class="table-wrap">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Token</th>
-                <th>Patient</th>
-                <th>Doctor</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (apt of appointments; track apt.token) {
-                <tr>
-                  <td>
-                    <span class="token-chip">{{ apt.token }}</span>
-                  </td>
-                  <td>
-                    <div class="patient-cell">
-                      <div class="avatar">{{ apt.initials }}</div>
-                      <div>
-                        <div class="col-primary">{{ apt.name }}</div>
-                        <div class="meta">{{ apt.age }}y · {{ apt.gender }}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>{{ apt.doctor }}</td>
-                  <td>
-                    <span class="badge" [ngClass]="badgeClass(apt.statusColor)">{{
-                      apt.status
-                    }}</span>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- Bed Occupancy -->
-      <section class="card">
-        <div class="card__head">
-          <div class="card-head-left">
-            <div class="card-icon" style="--ci-bg:#fef9c3;--ci-fg:#ca8a04">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.75"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M2 4v16M22 20H2M18 8H6a2 2 0 0 0-2 2v6h16v-6a2 2 0 0 0-2-2z" />
-                <path d="M6 8V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2" />
-              </svg>
-            </div>
-            <h6 class="card__title">Bed Occupancy</h6>
-          </div>
-          <span class="badge badge-warning">78% full</span>
-        </div>
-        <div class="ward-list">
-          @for (ward of wards; track ward.name) {
-            <div class="ward-row">
-              <div class="ward-meta">
-                <span class="ward-name">{{ ward.name }}</span>
-                <span class="ward-count">{{ ward.occupied }}/{{ ward.total }}</span>
-              </div>
-              <div class="progress-track">
-                <div
-                  class="progress-fill"
-                  [style.width.%]="(ward.occupied / ward.total) * 100"
-                  [class.warn]="
-                    ward.occupied / ward.total > 0.75 && ward.occupied / ward.total <= 0.9
-                  "
-                  [class.crit]="ward.occupied / ward.total > 0.9"
-                ></div>
-              </div>
-            </div>
-          }
-        </div>
-      </section>
-    </div>
-  `,
+  imports: [CommonModule, RouterLink, ChartComponent],
   styles: [
     `
       :host {
-        display: flex;
-        flex-direction: column;
-        gap: var(--sp-6);
+        display: block;
       }
 
-      /* ── Header ── */
-      .dash-header {
+      /* ── Page head ─────────────────────────────────────────────────── */
+      .page-head {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
-      }
-      .dash-title {
-        font-family: var(--font-display);
-        font-size: var(--text-xl);
-        font-weight: 700;
-        color: var(--text-primary);
-        margin-bottom: 4px;
-      }
-      .dash-date {
-        font-size: var(--text-sm);
-        color: var(--text-muted);
-      }
-
-      /* ── Stat Cards ── */
-      .stat-grid {
-        display: flex;
         flex-wrap: wrap;
         gap: var(--sp-4);
-      }
-      .stat-card {
-        flex: 1 1 260px;
-        min-width: 0;
-        background: var(--bg-surface);
-        border: 1px solid var(--border-default);
-        border-left: 4px solid var(--fg);
-        border-radius: var(--radius-xl);
-        padding: var(--sp-4);
-        box-shadow: var(--shadow-xs);
-        display: flex;
-        flex-direction: column;
-        gap: var(--sp-3);
-        position: relative;
-        overflow: hidden;
-      }
-      .stat-top {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-      }
-      .stat-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: var(--radius-md);
-        flex-shrink: 0;
-        background: var(--bg);
-        color: var(--fg);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        svg {
-          width: 22px;
-          height: 22px;
-          overflow: visible;
-        }
-      }
-      .stat-delta {
-        font-size: 11px;
-        font-weight: 600;
-        padding: 3px 8px;
-        border-radius: var(--radius-full);
-        white-space: nowrap;
-        flex-shrink: 0;
-        &.up {
-          background: var(--clr-success-100);
-          color: var(--clr-success-600);
-        }
-        &.dn {
-          background: var(--clr-danger-100);
-          color: var(--clr-danger-600);
-        }
-      }
-      .stat-body {
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-      }
-      .stat-value {
-        font-family: var(--font-display);
-        font-size: var(--text-xl);
-        font-weight: 700;
-        color: var(--text-primary);
-        line-height: 1;
-      }
-      .stat-label {
-        font-family: var(--font-label);
-        font-size: 10px;
-        font-weight: 500;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        color: var(--text-muted);
+        margin-bottom: var(--sp-6);
       }
 
-      /* ── Module Grid ── */
-      .section-title {
-        font-size: var(--text-sm);
-        font-weight: 600;
+      .org-name {
+        font-family: var(--font-display);
+        font-weight: var(--fw-display-bold);
+        font-size: var(--text-xl);
+        letter-spacing: var(--ls-tight);
         color: var(--text-primary);
+      }
+
+      .org-sub {
+        margin-top: var(--sp-1);
+        font-size: var(--text-sm);
+        color: var(--text-secondary);
+      }
+
+      .range {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-2);
+        font-size: var(--text-sm);
+        color: var(--text-secondary);
+      }
+
+      .range select {
+        padding: var(--sp-2) var(--sp-3);
+        font-family: var(--font-body);
+        font-size: var(--text-sm);
+        color: var(--text-primary);
+        background: var(--bg-surface);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+      }
+
+      /* ── Grid ──────────────────────────────────────────────────────── */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+        gap: var(--sp-5);
+      }
+
+      .card {
+        display: flex;
+        flex-direction: column;
+        padding: var(--sp-5);
+        background: var(--bg-surface);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-xs);
+        transition:
+          box-shadow var(--transition-fast),
+          border-color var(--transition-fast);
+      }
+
+      .card:hover {
+        border-color: var(--border-strong);
+        box-shadow: var(--shadow-md);
+      }
+
+      .card__head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--sp-3);
         margin-bottom: var(--sp-4);
       }
-      .module-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-        gap: var(--sp-3);
-      }
-      .module-tile {
-        display: flex;
-        align-items: center;
-        gap: var(--sp-4);
-        padding: var(--sp-4) var(--sp-5);
-        background: var(--bg-surface);
-        border: 1px solid var(--border-default);
-        border-radius: var(--radius-xl);
-        text-decoration: none;
-        box-shadow: var(--shadow-xs);
-        transition: all var(--transition-fast);
-        &:hover {
-          border-color: var(--fg);
-          box-shadow: var(--shadow-md);
-          transform: translateY(-2px);
-          .module-icon {
-            background: var(--fg);
-            color: #fff;
-          }
-          .module-arrow {
-            color: var(--fg);
-            transform: translateX(3px);
-          }
-        }
-      }
-      .module-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: var(--radius-lg);
-        flex-shrink: 0;
-        background: var(--bg);
-        color: var(--fg);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all var(--transition-fast);
-        svg {
-          width: 24px;
-          height: 24px;
-          overflow: visible;
-        }
-      }
-      .module-meta {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
-      .module-name {
-        font-size: var(--text-sm);
-        font-weight: 600;
+
+      .card__title {
+        font-family: var(--font-display);
+        font-weight: var(--fw-display-bold);
+        font-size: var(--text-base);
         color: var(--text-primary);
       }
-      .module-sub {
-        font-size: var(--text-xs);
-        color: var(--text-muted);
-      }
-      .module-arrow {
-        width: 16px;
-        height: 16px;
-        color: var(--border-strong);
-        flex-shrink: 0;
-        transition: all var(--transition-fast);
-      }
 
-      /* ── Bottom grid ── */
-      .bottom-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: var(--sp-6);
-      }
-      @media (max-width: 1100px) {
-        .bottom-grid {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      /* ── Card ── */
-      .card-head-left {
-        display: flex;
-        align-items: center;
-        gap: var(--sp-3);
-      }
-      .card-icon {
-        width: 34px;
-        height: 34px;
-        border-radius: var(--radius-md);
-        flex-shrink: 0;
-        background: var(--ci-bg);
-        color: var(--ci-fg);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        svg {
-          width: 17px;
-          height: 17px;
-          overflow: visible;
-        }
-      }
-
-      /* ── Table ── */
-      .token-chip {
+      .card__total {
         font-family: var(--font-display);
-        font-size: var(--text-xs);
-        font-weight: 700;
-        color: var(--clr-primary-600);
-        background: var(--clr-primary-50);
-        padding: 2px 8px;
-        border-radius: 4px;
+        font-weight: var(--fw-display-black);
+        color: var(--clr-primary-700);
       }
-      .patient-cell {
-        display: flex;
-        align-items: center;
-        gap: var(--sp-3);
-      }
-      .avatar {
-        width: 32px;
-        height: 32px;
-        border-radius: var(--radius-full);
-        background: var(--clr-neutral-200);
-        color: var(--clr-neutral-700);
-        font-family: var(--font-display);
-        font-size: 11px;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-      }
-      .meta {
+
+      .card__scope {
         font-size: var(--text-xs);
         color: var(--text-muted);
       }
 
-      /* ── Ward / Progress ── */
-      .ward-list {
-        padding: var(--sp-4) var(--sp-5);
+      .card__body {
         display: flex;
-        flex-direction: column;
-        gap: var(--sp-4);
+        gap: var(--sp-5);
+        align-items: flex-start;
       }
-      .ward-row {
+
+      .chart-box {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .chart-box--donut {
+        flex: 0 0 180px;
+      }
+
+      /* ── Legend (also the "relief" for low-contrast slots) ─────────── */
+      .legend {
         display: flex;
         flex-direction: column;
         gap: var(--sp-2);
+        min-width: 0;
       }
-      .ward-meta {
+
+      .legend--row {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: var(--sp-2) var(--sp-5);
+        margin-top: var(--sp-3);
+      }
+
+      .legend-item {
         display: flex;
-        justify-content: space-between;
+        align-items: center;
+        gap: var(--sp-2);
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+        white-space: nowrap;
       }
-      .ward-name {
-        font-size: var(--text-sm);
-        font-weight: 500;
+
+      .swatch {
+        flex: none;
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+      }
+
+      .legend-val {
+        font-weight: var(--fw-semibold);
         color: var(--text-primary);
       }
-      .ward-count {
-        font-family: var(--font-label);
-        font-size: 11px;
-        font-weight: 500;
-        letter-spacing: 0.04em;
+
+      /* ── Empty state ───────────────────────────────────────────────── */
+      .empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: var(--sp-2);
+        min-height: 108px;
+        padding: var(--sp-5);
+        text-align: center;
         color: var(--text-muted);
+        background: var(--clr-neutral-50);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-md);
       }
-      .progress-track {
-        height: 6px;
-        background: var(--border-default);
-        border-radius: var(--radius-full);
-        overflow: hidden;
+
+      .empty strong {
+        font-size: var(--text-sm);
+        font-weight: var(--fw-semibold);
+        color: var(--text-secondary);
       }
-      .progress-fill {
-        height: 100%;
-        background: var(--clr-primary-500);
-        border-radius: var(--radius-full);
-        transition: width 0.4s ease;
-        &.warn {
-          background: var(--clr-warning-600);
+
+      .empty span {
+        font-size: var(--text-xs);
+        max-width: 34ch;
+        line-height: var(--lh-normal);
+      }
+
+      /* ── Card footer action ── */
+      .card__foot {
+        margin-top: var(--sp-4);
+        padding-top: var(--sp-3);
+        border-top: 1px solid var(--border-default);
+      }
+
+      .card__action {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-2);
+        font-family: var(--font-label);
+        font-size: var(--text-xs);
+        font-weight: var(--fw-semibold);
+        color: var(--clr-primary-600);
+        text-decoration: none;
+      }
+
+      .card__action:hover {
+        color: var(--clr-primary-700);
+        gap: var(--sp-3);
+      }
+
+      /* ── Quick links ───────────────────────────────────────────────── */
+      .ql-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--sp-5);
+      }
+
+      .ql-group-title {
+        font-family: var(--font-label);
+        font-size: var(--text-xs);
+        font-weight: var(--fw-bold);
+        letter-spacing: var(--ls-wide);
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        margin-bottom: var(--sp-2);
+      }
+
+      .ql-link {
+        display: block;
+        padding: var(--sp-1) 0;
+        font-size: var(--text-sm);
+        color: var(--clr-primary-600);
+        text-decoration: none;
+      }
+
+      .ql-link:hover {
+        color: var(--clr-primary-700);
+        text-decoration: underline;
+      }
+
+      /* ── States ────────────────────────────────────────────────────── */
+      .state {
+        padding: var(--sp-8);
+        text-align: center;
+        font-size: var(--text-sm);
+        color: var(--text-secondary);
+        background: var(--bg-surface);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+      }
+
+      .state--error {
+        color: var(--clr-danger-600);
+        background: var(--clr-danger-100);
+        border-color: color-mix(in srgb, var(--clr-danger-600) 25%, transparent);
+      }
+
+      @media (max-width: 900px) {
+        .grid,
+        .ql-grid {
+          grid-template-columns: minmax(0, 1fr);
         }
-        &.crit {
-          background: var(--clr-danger-600);
+
+        .card__body {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .chart-box--donut {
+          flex: none;
         }
       }
     `,
   ],
-})
-export class DashboardPage {
-  auth = inject(AuthService);
-  private router = inject(Router);
+  template: `
+    <div class="page-head">
+      <div>
+        <div class="org-name">{{ data()?.org?.name ?? '—' }}</div>
+        <div class="org-sub">{{ data()?.org?.email }}</div>
+      </div>
 
-  get userName() {
-    return this.auth.currentUser()?.name ?? 'Doctor';
+      <label class="range">
+        Range
+        <select [value]="months()" (change)="setRange($any($event.target).value)">
+          <option value="3">Last 3 Months</option>
+          <option value="6">Last 6 Months</option>
+          <option value="12">Last 12 Months</option>
+        </select>
+      </label>
+    </div>
+
+    @if (loading()) {
+      <div class="state">Loading overview…</div>
+    } @else if (error()) {
+      <div class="state state--error">{{ error() }}</div>
+    } @else if (data(); as d) {
+      <div class="grid">
+        <!-- ── 1. Finance ────────────────────────────────────────────── -->
+        <section class="card">
+          <div class="card__head">
+            <span class="card__title">Finance</span>
+            <span class="card__total">{{ money(d.finance.total) }}</span>
+          </div>
+          @if (d.finance.total > 0) {
+            <div class="chart-box">
+              <hms-chart [config]="financeCfg()" [height]="220" />
+            </div>
+            <div class="legend legend--row">
+              @for (r of financeLegend(); track r.label) {
+                <span class="legend-item">
+                  <span class="swatch" [style.background]="r.color"></span>
+                  {{ r.label }} <span class="legend-val">{{ r.value }}</span>
+                </span>
+              }
+            </div>
+          } @else {
+            <div class="empty">
+              <strong>No billing yet</strong>
+              <span>No bills have been raised in this period, so there is nothing to chart.</span>
+            </div>
+          }
+          <div class="card__foot">
+            <a class="card__action" routerLink="/billing">
+              Revenue insights
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </a>
+          </div>
+        </section>
+
+        <!-- ── 2. Your Collections ───────────────────────────────────── -->
+        <section class="card">
+          <div class="card__head">
+            <span class="card__title">Your Collections</span>
+            <span class="card__total">{{ money(d.collections.total) }}</span>
+          </div>
+          @if (d.collections.total > 0) {
+            <div class="card__body">
+              <div class="chart-box chart-box--donut">
+                <hms-chart [config]="collectionsCfg()" [height]="180" />
+              </div>
+              <div class="legend">
+                @for (r of collectionsLegend(); track r.label) {
+                  <span class="legend-item">
+                    <span class="swatch" [style.background]="r.color"></span>
+                    {{ r.label }} <span class="legend-val">{{ r.value }}</span>
+                  </span>
+                }
+              </div>
+            </div>
+          } @else {
+            <div class="empty">
+              <strong>No payments recorded</strong>
+              <span>Collections appear here once payments are taken against bills.</span>
+            </div>
+          }
+          <div class="card__foot">
+            <a class="card__action" routerLink="/billing">
+              Collection insights
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </a>
+          </div>
+        </section>
+
+        <!-- ── 3. Patients ───────────────────────────────────────────── -->
+        <section class="card">
+          <div class="card__head">
+            <span class="card__title">Patients</span>
+            <span class="card__total">{{ count(d.patients.total) }}</span>
+          </div>
+          @if (d.patients.total > 0) {
+            <div class="chart-box">
+              <hms-chart [config]="patientsCfg()" [height]="220" />
+            </div>
+            <div class="legend legend--row">
+              @for (r of patientsLegend(); track r.label) {
+                <span class="legend-item">
+                  <span class="swatch" [style.background]="r.color"></span>
+                  {{ r.label }} <span class="legend-val">{{ r.value }}</span>
+                </span>
+              }
+            </div>
+          } @else {
+            <div class="empty">
+              <strong>No patients in range</strong>
+              <span>Register a patient to see registrations and repeat visits here.</span>
+            </div>
+          }
+          <div class="card__foot">
+            <a class="card__action" routerLink="/patient">
+              View patients
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </a>
+          </div>
+        </section>
+
+        <!-- ── 4. Average Patient's Rating ───────────────────────────── -->
+        <section class="card">
+          <div class="card__head">
+            <span class="card__title">Average Patient's Rating</span>
+            <span class="card__scope">Not tracked</span>
+          </div>
+          <div class="empty">
+            <strong>No rating data</strong>
+            <span>
+              HMS does not capture patient feedback yet — there is no rating field in the schema.
+              This card stays empty until one is added.
+            </span>
+          </div>
+        </section>
+
+        <!-- ── 5. Finance Exceptions ─────────────────────────────────── -->
+        <section class="card">
+          <div class="card__head">
+            <span class="card__title">Total Finance Exceptions</span>
+            <span class="card__total">{{ count(d.financeExceptions.total) }}</span>
+          </div>
+          @if (d.financeExceptions.total > 0) {
+            <div class="card__body">
+              @if (finExcLegend().length >= 2) {
+                <div class="chart-box chart-box--donut">
+                  <hms-chart [config]="finExcCfg()" [height]="180" />
+                </div>
+              }
+              <div class="legend">
+                @for (r of finExcLegend(); track r.label) {
+                  <span class="legend-item">
+                    <span class="swatch" [style.background]="r.color"></span>
+                    {{ r.label }} <span class="legend-val">{{ r.value }}</span>
+                  </span>
+                }
+              </div>
+            </div>
+          } @else {
+            <div class="empty">
+              <strong>No finance exceptions</strong>
+              <span>No cancelled bills, reversed payments or stale drafts. Nothing to action.</span>
+            </div>
+          }
+          <div class="card__foot">
+            <a class="card__action" routerLink="/billing">
+              Review bills
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </a>
+          </div>
+        </section>
+
+        <!-- ── 6. Operation Exceptions ───────────────────────────────── -->
+        <section class="card">
+          <div class="card__head">
+            <span class="card__title">Total Operation Exceptions</span>
+            <span class="card__total">{{ count(d.operationExceptions.total) }}</span>
+          </div>
+          @if (d.operationExceptions.total > 0) {
+            <div class="card__body">
+              @if (opExcLegend().length >= 2) {
+                <div class="chart-box chart-box--donut">
+                  <hms-chart [config]="opExcCfg()" [height]="180" />
+                </div>
+              }
+              <div class="legend">
+                @for (r of opExcLegend(); track r.label) {
+                  <span class="legend-item">
+                    <span class="swatch" [style.background]="r.color"></span>
+                    {{ r.label }} <span class="legend-val">{{ r.value }}</span>
+                  </span>
+                }
+              </div>
+            </div>
+          } @else {
+            <div class="empty">
+              <strong>No operation exceptions</strong>
+              <span>No cancelled lab orders, overdue samples or overdue results.</span>
+            </div>
+          }
+          <div class="card__foot">
+            <a class="card__action" routerLink="/laboratory">
+              Open lab orders
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </a>
+          </div>
+        </section>
+
+        <!-- ── 7. Total Logins ───────────────────────────────────────── -->
+        <section class="card">
+          <div class="card__head">
+            <span class="card__title">Total Logins</span>
+            <span class="card__total">{{ count(d.logins.total) }}</span>
+          </div>
+          <div class="card__scope" style="margin-bottom:var(--sp-3)">Today, by role</div>
+          @if (d.logins.total > 0) {
+            <div class="card__body">
+              @if (loginsLegend().length >= 2) {
+                <div class="chart-box chart-box--donut">
+                  <hms-chart [config]="loginsCfg()" [height]="180" />
+                </div>
+              }
+              <div class="legend">
+                @for (r of loginsLegend(); track r.label) {
+                  <span class="legend-item">
+                    <span class="swatch" [style.background]="r.color"></span>
+                    {{ r.label }} <span class="legend-val">{{ r.value }}</span>
+                  </span>
+                }
+              </div>
+            </div>
+          } @else {
+            <div class="empty">
+              <strong>No logins today</strong>
+              <span>Counts users whose last sign-in falls on today's date.</span>
+            </div>
+          }
+          <div class="card__foot">
+            <a class="card__action" routerLink="/users-management">
+              User settings
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </a>
+          </div>
+        </section>
+
+        <!-- ── 8. Quick Links ────────────────────────────────────────── -->
+        <section class="card">
+          <div class="card__head">
+            <span class="card__title">Quick Links</span>
+          </div>
+          <div class="ql-grid">
+            @for (g of quickLinks; track g.title) {
+              <div>
+                <div class="ql-group-title">{{ g.title }}</div>
+                @for (l of g.links; track l.route) {
+                  <a class="ql-link" [routerLink]="l.route">{{ l.label }}</a>
+                }
+              </div>
+            }
+          </div>
+        </section>
+      </div>
+    }
+  `,
+})
+export class DashboardPage implements OnInit {
+  private api = inject(ReportsApiService);
+
+  data = signal<Overview | null>(null);
+  loading = signal(true);
+  error = signal('');
+  months = signal(12);
+
+  quickLinks = [
+    {
+      title: 'Front Desk',
+      links: [
+        { label: 'Register Patient', route: '/patient/new' },
+        { label: 'Patient List', route: '/patient' },
+        { label: 'New OPD Visit', route: '/opd/new' },
+      ],
+    },
+    {
+      title: 'Clinical',
+      links: [
+        { label: 'Emergency', route: '/emergency' },
+        { label: 'Lab Orders', route: '/laboratory' },
+        { label: 'IPD Admissions', route: '/ipd' },
+      ],
+    },
+    {
+      title: 'Finance',
+      links: [
+        { label: 'Bills', route: '/billing' },
+        { label: 'New Bill', route: '/billing/new' },
+        { label: 'Pharmacy Sales', route: '/pharmacy' },
+      ],
+    },
+    {
+      title: 'Records',
+      links: [
+        { label: 'Reports', route: '/reports' },
+        { label: 'Inventory', route: '/inventory' },
+        { label: 'Compliance', route: '/compliance' },
+      ],
+    },
+  ];
+
+  ngOnInit(): void {
+    this.load();
   }
 
-  today = new Date().toLocaleDateString('en-IN', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  setRange(v: string): void {
+    this.months.set(Number(v));
+    this.load();
+  }
 
-  badgeClass(color: string) {
+  private load(): void {
+    this.loading.set(true);
+    this.error.set('');
+    this.api.overview(this.months()).subscribe({
+      next: (d) => {
+        this.data.set(d);
+        this.loading.set(false);
+      },
+      error: (e) => {
+        this.error.set(e?.error?.message ?? 'Could not load the overview.');
+        this.loading.set(false);
+      },
+    });
+  }
+
+  money = (n: number) => inr.format(n);
+  count = (n: number) => num.format(n);
+
+  // ── Shared chart options ──────────────────────────────────────────────
+  private barOpts(): ChartConfiguration<'bar'>['options'] {
     return {
-      'badge-info': color === 'info',
-      'badge-success': color === 'success',
-      'badge-warning': color === 'warning',
-      'badge-danger': color === 'danger',
-      'badge-neutral': color === 'neutral',
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: { color: INK, font: { size: 10 } } },
+        y: {
+          stacked: true,
+          beginAtZero: true,
+          grid: { color: GRID },
+          border: { display: false },
+          ticks: { color: INK, font: { size: 10 } },
+        },
+      },
+      plugins: { legend: { display: false } },
     };
   }
 
-  stats: StatCard[] = [
-    {
-      label: 'OPD Today',
-      value: 142,
-      delta: '12% vs yesterday',
-      deltaUp: true,
-      bg: '#dbeafe',
-      fg: '#2563eb',
-      iconPath:
-        'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M12 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
-    },
-    {
-      label: 'Beds Occupied',
-      value: '78/100',
-      delta: '3 discharged',
-      deltaUp: false,
-      bg: '#fef9c3',
-      fg: '#ca8a04',
-      iconPath: 'M2 4v16M22 20H2M6 8h12a2 2 0 0 1 2 2v6H4v-6a2 2 0 0 1 2-2z',
-    },
-    {
-      label: 'Lab Pending',
-      value: 28,
-      bg: '#e0f2fe',
-      fg: '#0284c7',
-      iconPath: 'M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v11l-4 7h14l-4-7V3',
-    },
-    {
-      label: "Today's Revenue",
-      value: '₹1.24L',
-      delta: '8% vs yesterday',
-      deltaUp: true,
-      bg: '#dcfce7',
-      fg: '#16a34a',
-      iconPath: 'M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',
-    },
-    {
-      label: 'Pharmacy Sales',
-      value: '₹38.5k',
-      delta: '5% vs yesterday',
-      deltaUp: true,
-      bg: '#f0fdf4',
-      fg: '#15803d',
-      iconPath: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM9 22V12h6v10',
-    },
-    {
-      label: 'Emergency Cases',
-      value: 7,
-      bg: '#fee2e2',
-      fg: '#dc2626',
-      iconPath:
-        'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01',
-    },
-  ];
+  private donutOpts(): ChartConfiguration<'doughnut'>['options'] {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '68%',
+      plugins: { legend: { display: false } },
+    };
+  }
 
-  modules: ModuleTile[] = [
-    {
-      label: 'Patient Registration',
-      sub: 'Register & search patients',
-      route: '/patient',
-      bg: '#dbeafe',
-      fg: '#2563eb',
-      iconPath:
-        'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM19 8l2 2-2 2M15 10h6',
-    },
-    {
-      label: 'OPD / EMR',
-      sub: 'Consultations & prescriptions',
-      route: '/opd',
-      bg: '#e0f2fe',
-      fg: '#0284c7',
-      iconPath:
-        'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M12 18v-6M9 15h6',
-    },
-    {
-      label: 'Emergency',
-      sub: 'Triage & acute care',
-      route: '/emergency',
-      bg: '#fee2e2',
-      fg: '#dc2626',
-      iconPath:
-        'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01',
-    },
-    {
-      label: 'Laboratory',
-      sub: 'Tests, orders & reports',
-      route: '/laboratory',
-      bg: '#f0fdf4',
-      fg: '#16a34a',
-      iconPath: 'M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v11l-4 7h14l-4-7V3',
-    },
-    {
-      label: 'Pharmacy',
-      sub: 'Drugs, stock & sales',
-      route: '/pharmacy',
-      bg: '#f0fdf4',
-      fg: '#15803d',
-      iconPath: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM9 22V12h6v10',
-    },
-    {
-      label: 'IPD & Wards',
-      sub: 'Admissions & bed map',
-      route: '/ipd',
-      bg: '#fef9c3',
-      fg: '#ca8a04',
-      iconPath:
-        'M2 4v16M22 20H2M6 8h12a2 2 0 0 1 2 2v6H4v-6a2 2 0 0 1 2-2zM8 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2',
-    },
-    {
-      label: 'Radiology',
-      sub: 'Imaging & reports',
-      route: '/radiology',
-      bg: '#f3e8ff',
-      fg: '#7c3aed',
-      iconPath: 'M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zM12 8v4M12 16h.01',
-    },
-    {
-      label: 'Billing',
-      sub: 'Invoices & payments',
-      route: '/billing',
-      bg: '#dcfce7',
-      fg: '#16a34a',
-      iconPath: 'M21 4H3a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM1 10h22',
-    },
-    {
-      label: 'Inventory',
-      sub: 'Store & supply chain',
-      route: '/inventory',
-      bg: '#fef3c7',
-      fg: '#d97706',
-      iconPath:
-        'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z',
-    },
-    {
-      label: 'Compliance',
-      sub: 'NABH & govt schemes',
-      route: '/compliance',
-      bg: '#ffe4e6',
-      fg: '#be123c',
-      iconPath: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
-    },
-    {
-      label: 'Reports & MIS',
-      sub: 'Analytics & dashboards',
-      route: '/reports',
-      bg: '#e0e7ff',
-      fg: '#4338ca',
-      iconPath: 'M18 20V10M12 20V4M6 20v-6',
-    },
-  ];
+  // ── 1. Finance ────────────────────────────────────────────────────────
+  financeCfg = computed<ChartConfiguration<'bar'>>(() => {
+    const s = this.data()!.finance.series;
+    return {
+      type: 'bar',
+      data: {
+        labels: s.map((p) => monthLabel(p.month)),
+        datasets: [
+          {
+            label: 'Paid',
+            data: s.map((p) => p.paid),
+            backgroundColor: SERIES[0],
+            borderColor: SURFACE,
+            borderWidth: 2,
+            borderRadius: 4,
+          },
+          {
+            label: 'Due',
+            data: s.map((p) => p.due),
+            backgroundColor: SERIES[3],
+            borderColor: SURFACE,
+            borderWidth: 2,
+            borderRadius: 4,
+          },
+        ],
+      },
+      options: this.barOpts(),
+    };
+  });
 
-  appointments = [
-    {
-      token: 'T-001',
-      name: 'Ravi Kumar',
-      initials: 'RK',
-      age: 45,
-      gender: 'M',
-      doctor: 'Dr. Sharma',
-      status: 'In Consult',
-      statusColor: 'info',
-    },
-    {
-      token: 'T-002',
-      name: 'Priya Devi',
-      initials: 'PD',
-      age: 32,
-      gender: 'F',
-      doctor: 'Dr. Reddy',
-      status: 'Waiting',
-      statusColor: 'warning',
-    },
-    {
-      token: 'T-003',
-      name: 'Anjali Singh',
-      initials: 'AS',
-      age: 28,
-      gender: 'F',
-      doctor: 'Dr. Sharma',
-      status: 'Waiting',
-      statusColor: 'warning',
-    },
-    {
-      token: 'T-004',
-      name: 'Suresh Babu',
-      initials: 'SB',
-      age: 61,
-      gender: 'M',
-      doctor: 'Dr. Krishna',
-      status: 'Done',
-      statusColor: 'success',
-    },
-    {
-      token: 'T-005',
-      name: 'Lakshmi P.',
-      initials: 'LP',
-      age: 38,
-      gender: 'F',
-      doctor: 'Dr. Reddy',
-      status: 'Cancelled',
-      statusColor: 'danger',
-    },
-  ];
+  financeLegend = computed<LegendRow[]>(() => {
+    const f = this.data()!.finance;
+    return [
+      { color: SERIES[0], label: 'Paid', value: this.money(f.paid) },
+      { color: SERIES[3], label: 'Due', value: this.money(f.due) },
+    ];
+  });
 
-  wards = [
-    { name: 'General Ward A', occupied: 18, total: 20 },
-    { name: 'ICU', occupied: 8, total: 10 },
-    { name: 'Maternity Ward', occupied: 12, total: 15 },
-    { name: 'Paediatrics', occupied: 7, total: 12 },
-    { name: 'Surgical Ward', occupied: 14, total: 20 },
-  ];
+  // ── 2. Collections ────────────────────────────────────────────────────
+  collectionsCfg = computed<ChartConfiguration<'doughnut'>>(() => {
+    const m = this.data()!.collections.byMode;
+    return {
+      type: 'doughnut',
+      data: {
+        labels: m.map((r) => pretty(r.mode)),
+        datasets: [
+          {
+            data: m.map((r) => r.amount),
+            backgroundColor: m.map((_, i) => SERIES[i % SERIES.length]),
+            borderColor: SURFACE,
+            borderWidth: 2,
+          },
+        ],
+      },
+      options: this.donutOpts(),
+    };
+  });
+
+  collectionsLegend = computed<LegendRow[]>(() =>
+    this.data()!.collections.byMode.map((r, i) => ({
+      color: SERIES[i % SERIES.length],
+      label: pretty(r.mode),
+      value: this.money(r.amount),
+    })),
+  );
+
+  // ── 3. Patients ───────────────────────────────────────────────────────
+  patientsCfg = computed<ChartConfiguration<'bar'>>(() => {
+    const s = this.data()!.patients.series;
+    return {
+      type: 'bar',
+      data: {
+        labels: s.map((p) => monthLabel(p.month)),
+        datasets: [
+          {
+            label: 'New',
+            data: s.map((p) => p.fresh),
+            backgroundColor: SERIES[0],
+            borderColor: SURFACE,
+            borderWidth: 2,
+            borderRadius: 4,
+          },
+          {
+            label: 'Repeat',
+            data: s.map((p) => p.repeat),
+            backgroundColor: SERIES[2],
+            borderColor: SURFACE,
+            borderWidth: 2,
+            borderRadius: 4,
+          },
+        ],
+      },
+      options: this.barOpts(),
+    };
+  });
+
+  patientsLegend = computed<LegendRow[]>(() => {
+    const s = this.data()!.patients.series;
+    return [
+      { color: SERIES[0], label: 'New', value: this.count(s.reduce((a, p) => a + p.fresh, 0)) },
+      { color: SERIES[2], label: 'Repeat', value: this.count(s.reduce((a, p) => a + p.repeat, 0)) },
+    ];
+  });
+
+  // ── 5/6/7. Bucket donuts ──────────────────────────────────────────────
+  private bucketCfg(buckets: { label: string; count: number }[]): ChartConfiguration<'doughnut'> {
+    const shown = buckets.filter((b) => b.count > 0);
+    return {
+      type: 'doughnut',
+      data: {
+        labels: shown.map((b) => b.label),
+        datasets: [
+          {
+            data: shown.map((b) => b.count),
+            backgroundColor: shown.map((_, i) => SERIES[i % SERIES.length]),
+            borderColor: SURFACE,
+            borderWidth: 2,
+          },
+        ],
+      },
+      options: this.donutOpts(),
+    };
+  }
+
+  private bucketLegend(buckets: { label: string; count: number }[]): LegendRow[] {
+    return buckets
+      .filter((b) => b.count > 0)
+      .map((b, i) => ({
+        color: SERIES[i % SERIES.length],
+        label: b.label,
+        value: this.count(b.count),
+      }));
+  }
+
+  finExcCfg = computed(() => this.bucketCfg(this.data()!.financeExceptions.buckets));
+  finExcLegend = computed(() => this.bucketLegend(this.data()!.financeExceptions.buckets));
+
+  opExcCfg = computed(() => this.bucketCfg(this.data()!.operationExceptions.buckets));
+  opExcLegend = computed(() => this.bucketLegend(this.data()!.operationExceptions.buckets));
+
+  loginsCfg = computed(() =>
+    this.bucketCfg(this.data()!.logins.byRole.map((r) => ({ label: pretty(r.label), count: r.count }))),
+  );
+  loginsLegend = computed(() =>
+    this.bucketLegend(this.data()!.logins.byRole.map((r) => ({ label: pretty(r.label), count: r.count }))),
+  );
 }

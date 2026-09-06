@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsOptional, IsNumber } from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsNumber, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PatientCategory } from '../patient.entity';
 
@@ -10,6 +10,11 @@ export class QueryPatientDto {
   @IsOptional()
   @IsEnum(PatientCategory)
   category?: PatientCategory;
+
+  /** YYYY-MM-DD — only patients registered on this date. */
+  @IsOptional()
+  @IsDateString()
+  date?: string;
 
   @IsOptional()
   @Type(() => Number)

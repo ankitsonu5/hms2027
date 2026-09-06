@@ -30,6 +30,11 @@ export class PatientService {
       qb.andWhere('patient.category = :category', { category: query.category });
     }
 
+    if (query.date) {
+      // CAST(), not `:date::date` — TypeORM reads the `::` as another named parameter.
+      qb.andWhere('CAST(patient."createdAt" AS date) = CAST(:date AS date)', { date: query.date });
+    }
+
     if (query.search) {
       const search = `%${query.search}%`;
       qb.andWhere(
@@ -86,6 +91,15 @@ export class PatientService {
     }
     // Unreachable: the loop either returns or throws.
     throw new Error('Failed to allocate a unique UHID');
+  }
+
+  /**
+   * Preview of the UHID the next registration would get. Advisory only — the real
+   * one is allocated inside create()'s retry loop, so two desks previewing the
+   * same number is harmless.
+   */
+  async peekNextUhid(tenantId: string): Promise<{ uhid: string }> {
+    return { uhid: await this.nextUhid(tenantId, new Date().getFullYear()) };
   }
 
   private async nextUhid(tenantId: string, year: number): Promise<string> {

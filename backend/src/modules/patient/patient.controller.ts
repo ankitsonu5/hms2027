@@ -29,6 +29,11 @@ export class PatientController {
     return this.patientService.findAll(req.user.tenantId, query);
   }
 
+  @Get('next-uhid')
+  peekNextUhid(@Req() req: any) {
+    return this.patientService.peekNextUhid(req.user.tenantId);
+  }
+
   @Get('search')
   findByUhid(@Query('uhid') uhid: string, @Req() req: any) {
     return this.patientService.findByUhid(req.user.tenantId, uhid);

@@ -137,6 +137,44 @@ export class Patient {
   @Column({ default: false })
   locationSharingConsent: boolean;
 
+  // ── Registration desk fields ──────────────────────────────────────────────
+  @Column({ nullable: true })
+  designation: string;
+
+  @Column({ nullable: true })
+  patientType: string;
+
+  /** Externally-issued id the desk may key in alongside the generated UHID. */
+  @Column({ nullable: true })
+  optionalPatientId: string;
+
+  @Column({ nullable: true })
+  state: string;
+
+  @Column({ nullable: true })
+  district: string;
+
+  @Column({ nullable: true })
+  country: string;
+
+  @Column({ nullable: true })
+  organization: string;
+
+  /** 'PATIENT' | 'RELATIVE' — whose number `phone` is. */
+  @Column({ nullable: true })
+  phoneBelongsTo: string;
+
+  @Column({ default: true })
+  whatsappConsent: boolean;
+
+  /**
+   * Screening questionnaire captured at registration (vaccination, travel,
+   * symptoms, comorbidities). Free-form on purpose — the question set changes
+   * with public-health guidance and shouldn't cost a migration each time.
+   */
+  @Column({ type: 'jsonb', nullable: true })
+  screening: Record<string, unknown>;
+
   @Column({ default: true })
   isActive: boolean;
 

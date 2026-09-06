@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { ShellComponent } from './layout/shell/shell';
 import { authGuard } from './core/guards/auth.guard';
+import { ADMIN_ROUTES } from './modules/admin-console/admin-console.routes';
 
 export const routes: Routes = [
   {
@@ -71,6 +72,9 @@ export const routes: Routes = [
         loadChildren: () =>
           import('./modules/reports/reports.routes').then((m) => m.REPORTS_ROUTES),
       },
+
+      // Administration console — one placeholder page per menu entry.
+      ...ADMIN_ROUTES,
     ],
   },
   { path: '**', redirectTo: '' },
