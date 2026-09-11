@@ -405,8 +405,8 @@ const INITIAL_APPOINTMENTS: Appointment[] = [
 
       .search-box {
         position: relative;
-        flex: 1;
-        min-width: 240px;
+        width: 240px;
+        flex: 0 0 240px;
       }
 
       .search-box svg {
@@ -431,6 +431,181 @@ const INITIAL_APPOINTMENTS: Appointment[] = [
       .search-input:focus {
         border-color: #1e40af;
         box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.1);
+      }
+
+      /* Small Calendar Filter & Popup */
+      .calendar-anchor {
+        position: relative;
+      }
+
+      .filter-date-btn {
+        height: 38px;
+        box-sizing: border-box;
+        padding: 8px 14px;
+        font-size: var(--text-xs);
+        font-weight: 600;
+        background: var(--bg-card);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-md);
+        color: #1e40af;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        outline: none;
+        transition: border-color 0.15s, background-color 0.15s;
+      }
+
+      .filter-date-btn:hover,
+      .filter-date-btn.active {
+        border-color: #1e40af;
+        background-color: #eff6ff;
+      }
+
+      .filter-date-btn svg {
+        color: #1e40af;
+        flex-shrink: 0;
+      }
+
+      .calendar-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 90;
+      }
+
+      .calendar-card {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        width: 270px;
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05);
+        padding: 12px;
+        z-index: 100;
+      }
+
+      .cal-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+
+      .cal-month-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #0f172a;
+      }
+
+      .cal-nav-btn {
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 16px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+
+      .cal-nav-btn:hover {
+        background: #e2e8f0;
+        color: #0f172a;
+      }
+
+      .cal-week-row {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        text-align: center;
+        font-size: 11px;
+        font-weight: 700;
+        color: #94a3b8;
+        margin-bottom: 6px;
+      }
+
+      .cal-days-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 3px;
+      }
+
+      .cal-day-cell {
+        width: 30px;
+        height: 30px;
+        margin: auto;
+        border: none;
+        background: transparent;
+        border-radius: 50%;
+        font-size: 12px;
+        font-weight: 500;
+        color: #1e293b;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s ease;
+      }
+
+      .cal-day-cell:hover {
+        background: #f1f5f9;
+      }
+
+      .cal-day-cell.other-month {
+        color: #cbd5e1;
+      }
+
+      /* TODAY DATE IS HIGHLIGHTED IN BLUE */
+      .cal-day-cell.is-today {
+        background-color: #1e40af !important;
+        color: #ffffff !important;
+        font-weight: 800 !important;
+        border-radius: 50% !important;
+        box-shadow: 0 2px 6px rgba(30, 64, 175, 0.4);
+      }
+
+      .cal-day-cell.is-selected:not(.is-today) {
+        background-color: #dbeafe !important;
+        color: #1e40af !important;
+        font-weight: 700 !important;
+        border-radius: 50% !important;
+      }
+
+      .cal-card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 10px;
+        padding-top: 8px;
+        border-top: 1px solid #f1f5f9;
+      }
+
+      .cal-link-btn {
+        background: none;
+        border: none;
+        font-size: 11px;
+        font-weight: 600;
+        color: #64748b;
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 4px;
+        transition: all 0.15s;
+      }
+
+      .cal-link-btn:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+      }
+
+      .cal-link-btn.primary {
+        color: #1e40af;
+        font-weight: 700;
       }
 
       .filter-select {
@@ -618,9 +793,23 @@ const INITIAL_APPOINTMENTS: Appointment[] = [
       }
 
       .form-input,
-      .form-select,
+      .form-select {
+        width: 100%;
+        height: 38px;
+        box-sizing: border-box;
+        padding: 8px 12px;
+        font-size: var(--text-xs);
+        background: var(--bg-card);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-md);
+        color: var(--text-primary);
+        outline: none;
+        transition: border-color 0.15s;
+      }
+
       .form-textarea {
         width: 100%;
+        box-sizing: border-box;
         padding: 8px 12px;
         font-size: var(--text-xs);
         background: var(--bg-card);
@@ -644,12 +833,43 @@ const INITIAL_APPOINTMENTS: Appointment[] = [
         font-weight: 600;
       }
 
-      /* Radio group */
+      /* Radio group - height 38px equal to inputs and searchbar */
       .radio-group {
         display: flex;
         gap: var(--sp-4);
         align-items: center;
-        height: 36px;
+        height: 38px;
+        box-sizing: border-box;
+      }
+
+      /* UID Search Suggestions Dropdown */
+      .uid-suggestions-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        max-height: 220px;
+        overflow-y: auto;
+        z-index: 50;
+      }
+
+      .uid-suggestion-item {
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #f1f5f9;
+        transition: background-color 0.15s;
+      }
+
+      .uid-suggestion-item:last-child {
+        border-bottom: none;
+      }
+
+      .uid-suggestion-item:hover {
+        background-color: #eff6ff;
       }
 
       .radio-label {
@@ -747,6 +967,237 @@ const INITIAL_APPOINTMENTS: Appointment[] = [
 
       .slip-row .k { color: #64748b; }
       .slip-row .v { font-weight: 600; color: #0f172a; }
+
+      /* Clickable row & Full Detail View */
+      .clickable-row {
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+      }
+
+      .clickable-row:hover {
+        background-color: #f1f5f9;
+      }
+
+      .detail-card {
+        background: #ffffff;
+        border-radius: 16px;
+        width: 720px;
+        max-width: 95vw;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        display: flex;
+        flex-direction: column;
+      }
+
+      .detail-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--border-default);
+        background: #ffffff;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+
+      .detail-title {
+        font-family: var(--font-display);
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+      }
+
+      .detail-sub {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: 4px;
+      }
+
+      .token-circle {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: #1e40af;
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: 800;
+        box-shadow: 0 4px 6px -1px rgba(30, 64, 175, 0.3);
+      }
+
+      .btn-close {
+        background: transparent;
+        border: none;
+        font-size: 20px;
+        color: #64748b;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 6px;
+        transition: background 0.15s, color 0.15s;
+      }
+
+      .btn-close:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+      }
+
+      .detail-body {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .detail-section {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 16px 20px;
+      }
+
+      .section-badge-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 700;
+        font-size: 14px;
+        color: #1e293b;
+        margin-bottom: 14px;
+      }
+
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px 20px;
+      }
+
+      .info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .info-full {
+        grid-column: 1 / -1;
+      }
+
+      .info-k {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #64748b;
+      }
+
+      .info-v {
+        font-size: 13px;
+        font-weight: 600;
+        color: #0f172a;
+      }
+
+      .info-v.highlight {
+        color: #1e40af;
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .info-v.mono {
+        font-family: monospace;
+      }
+
+      .italic-note {
+        font-style: italic;
+        font-weight: 500;
+        color: #334155;
+      }
+
+      .doc-card-view {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 10px;
+        padding: 14px 18px;
+      }
+
+      .doc-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #dbeafe;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+      }
+
+      .doc-name-lg {
+        font-size: 15px;
+        font-weight: 700;
+        color: #1e3a8a;
+      }
+
+      .doc-spec-lg {
+        font-size: 12px;
+        color: #2563eb;
+        margin-top: 2px;
+      }
+
+      .doc-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      .doc-chip {
+        font-size: 11px;
+        font-weight: 600;
+        background: #ffffff;
+        border: 1px solid #bfdbfe;
+        color: #1e40af;
+        padding: 3px 10px;
+        border-radius: 12px;
+      }
+
+      .detail-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 16px 24px;
+        border-top: 1px solid var(--border-default);
+        background: #ffffff;
+        position: sticky;
+        bottom: 0;
+        z-index: 10;
+      }
+
+      .quick-status-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .btn-xs {
+        font-size: 11px;
+        padding: 4px 8px;
+        border-radius: 6px;
+      }
+
+      .btn-selected {
+        background: #1e40af !important;
+        color: #ffffff !important;
+        border-color: #1e40af !important;
+      }
     `,
   ],
   template: `
@@ -869,10 +1320,70 @@ const INITIAL_APPOINTMENTS: Appointment[] = [
           <input
             type="text"
             class="search-input"
-            placeholder="Search by patient name, mobile, UHID, or appointment ID..."
+            placeholder="Search patient, mobile, UHID..."
             [ngModel]="searchQuery()"
             (ngModelChange)="searchQuery.set($event)"
           />
+        </div>
+
+        <!-- Small Date Filter Option (Opens Calendar Popup) -->
+        <div class="calendar-anchor">
+          <button
+            type="button"
+            class="filter-date-btn"
+            [class.active]="isCalendarOpen()"
+            (click)="toggleCalendar()"
+            title="Click to select date from calendar"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+            </svg>
+            <span>{{ formattedFilterDate() }}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="m6 9 6 6 6-6"/>
+            </svg>
+          </button>
+
+          <!-- Interactive Calendar Popup with Today Highlighted in Blue -->
+          @if (isCalendarOpen()) {
+            <div class="calendar-backdrop" (click)="isCalendarOpen.set(false)"></div>
+            <div class="calendar-card" (click)="$event.stopPropagation()">
+              <div class="cal-nav">
+                <button type="button" class="cal-nav-btn" (click)="prevMonth()" title="Previous Month">‹</button>
+                <span class="cal-month-title">{{ monthNames[calendarMonth()] }} {{ calendarYear() }}</span>
+                <button type="button" class="cal-nav-btn" (click)="nextMonth()" title="Next Month">›</button>
+              </div>
+
+              <div class="cal-week-row">
+                <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+              </div>
+
+              <div class="cal-days-grid">
+                @for (cell of calendarCells(); track cell.key) {
+                  <button
+                    type="button"
+                    class="cal-day-cell"
+                    [class.other-month]="!cell.isCurrentMonth"
+                    [class.is-today]="cell.isToday"
+                    [class.is-selected]="cell.isSelected"
+                    (click)="selectCalendarDate(cell.dateStr)"
+                    [title]="cell.isToday ? 'Today (' + cell.dateStr + ')' : cell.dateStr"
+                  >
+                    {{ cell.dayNum }}
+                  </button>
+                }
+              </div>
+
+              <div class="cal-card-footer">
+                <button type="button" class="cal-link-btn primary" (click)="selectToday()">
+                  Go to Today
+                </button>
+                <button type="button" class="cal-link-btn" (click)="selectAllDates()">
+                  All Dates
+                </button>
+              </div>
+            </div>
+          }
         </div>
 
         <select class="filter-select" [ngModel]="selectedDoctorFilter()" (ngModelChange)="selectedDoctorFilter.set($event)">
@@ -903,10 +1414,17 @@ const INITIAL_APPOINTMENTS: Appointment[] = [
       <div class="table-card">
         @if (filteredAppointments().length === 0) {
           <div style="padding: 3rem; text-align: center; color: var(--text-secondary);">
-            <p style="font-weight: 600; font-size: 14px;">No appointments found matching your filters.</p>
-            <button class="btn btn-outline btn-sm" style="margin-top: 8px;" (click)="resetFilters()">
-              Clear Filters
-            </button>
+            <p style="font-weight: 600; font-size: 14px;">
+              No appointments found for {{ selectedDateFilter() === 'ALL' ? 'the selected filters' : selectedDateFilter() }}.
+            </p>
+            <div style="display: flex; gap: 8px; justify-content: center; margin-top: 8px;">
+              <button class="btn btn-outline btn-sm" (click)="selectToday()">
+                Show Today's Appointments
+              </button>
+              <button class="btn btn-outline btn-sm" (click)="resetFilters()">
+                Clear Filters
+              </button>
+            </div>
           </div>
         } @else {
           <table>
@@ -923,7 +1441,7 @@ const INITIAL_APPOINTMENTS: Appointment[] = [
             </thead>
             <tbody>
               @for (apt of filteredAppointments(); track apt.id) {
-                <tr>
+                <tr class="clickable-row" (click)="viewDetails(apt)" title="Click to view complete patient details">
                   <td>
                     <div style="display: flex; align-items: center;">
                       <span class="token-badge">#{{ apt.tokenNo }}</span>
@@ -977,25 +1495,25 @@ const INITIAL_APPOINTMENTS: Appointment[] = [
                     </span>
                   </td>
 
-                  <td style="text-align: right;">
+                  <td style="text-align: right;" (click)="$event.stopPropagation()">
                     <div class="actions-cell" style="justify-content: flex-end;">
                       @if (apt.status === 'Confirmed') {
-                        <button class="btn btn-outline btn-sm" (click)="updateStatus(apt, 'Arrived')">
+                        <button class="btn btn-outline btn-sm" (click)="$event.stopPropagation(); updateStatus(apt, 'Arrived')">
                           Arrive
                         </button>
                       }
                       @if (apt.status === 'Arrived') {
-                        <button class="btn btn-primary btn-sm" (click)="updateStatus(apt, 'In-Consultation')">
+                        <button class="btn btn-primary btn-sm" (click)="$event.stopPropagation(); updateStatus(apt, 'In-Consultation')">
                           Call Next
                         </button>
                       }
                       @if (apt.status === 'In-Consultation') {
-                        <button class="btn btn-primary btn-sm" (click)="updateStatus(apt, 'Completed')">
+                        <button class="btn btn-primary btn-sm" (click)="$event.stopPropagation(); updateStatus(apt, 'Completed')">
                           Complete
                         </button>
                       }
 
-                      <button class="btn btn-outline btn-sm" title="Print Token Slip" (click)="openSlip(apt)">
+                      <button class="btn btn-outline btn-sm" title="Print Token Slip" (click)="$event.stopPropagation(); openSlip(apt)">
                         🖨️ Print
                       </button>
                     </div>
@@ -1025,7 +1543,73 @@ const INITIAL_APPOINTMENTS: Appointment[] = [
             <div class="form-grid">
               <div class="field">
                 <label>Patient ID (UHID)</label>
-                <input type="text" class="form-input" [value]="formPatientId()" readonly />
+                @if (patientType() === 'new') {
+                  <input type="text" class="form-input" [value]="formPatientId()" readonly />
+                } @else {
+                  <div style="position: relative;">
+                    <input
+                      type="text"
+                      class="form-input"
+                      placeholder="Search UID (e.g. UHID-2026-00012)..."
+                      [value]="existingUhidSearch()"
+                      (input)="onUhidSearchInput($any($event.target).value)"
+                      (focus)="showUhidSuggestions.set(true)"
+                      (blur)="onUhidBlur()"
+                    />
+                    @if (existingUhidSearch()) {
+                      <button
+                        type="button"
+                        style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 14px; padding: 2px;"
+                        (mousedown)="clearUhidSearch()"
+                        title="Clear search"
+                      >
+                        ✕
+                      </button>
+                    }
+
+                    @if (showUhidSuggestions() && matchingPatients().length > 0) {
+                      <div class="uid-suggestions-dropdown">
+                        @for (pat of matchingPatients(); track pat.uhid) {
+                          <div
+                            class="uid-suggestion-item"
+                            (mousedown)="selectExistingPatientFromSearch(pat)"
+                          >
+                            <div style="font-weight: 700; color: #1e40af; font-size: 12px;">{{ pat.uhid }}</div>
+                            <div style="font-size: 11px; color: #475569;">
+                              {{ pat.name }} · {{ pat.gender }}, {{ pat.age }}y · 📞 {{ pat.mobileNumber }}
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+
+              <div class="field">
+                <label>Patient Type</label>
+                <div class="radio-group">
+                  <label class="radio-label">
+                    <input
+                      type="radio"
+                      name="patientType"
+                      value="new"
+                      [checked]="patientType() === 'new'"
+                      (change)="onPatientTypeChange('new')"
+                    />
+                    New Patient
+                  </label>
+                  <label class="radio-label">
+                    <input
+                      type="radio"
+                      name="patientType"
+                      value="existing"
+                      [checked]="patientType() === 'existing'"
+                      (change)="onPatientTypeChange('existing')"
+                    />
+                    Existing Patient
+                  </label>
+                </div>
               </div>
 
               <div class="field">
@@ -1329,6 +1913,189 @@ const INITIAL_APPOINTMENTS: Appointment[] = [
         </div>
       </div>
     }
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- MODAL: COMPLETE PATIENT & APPOINTMENT DETAILS                   -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    @if (selectedAppointment(); as apt) {
+      <div class="modal-overlay" (click)="closeDetails()">
+        <div class="detail-card" (click)="$event.stopPropagation()">
+          <!-- Modal Header -->
+          <div class="detail-header">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div class="token-circle">#{{ apt.tokenNo }}</div>
+              <div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <h2 class="detail-title">{{ apt.patientName }}</h2>
+                  <span
+                    class="pill"
+                    [class.pill-confirmed]="apt.status === 'Confirmed'"
+                    [class.pill-arrived]="apt.status === 'Arrived'"
+                    [class.pill-progress]="apt.status === 'In-Consultation'"
+                    [class.pill-completed]="apt.status === 'Completed'"
+                    [class.pill-cancelled]="apt.status === 'Cancelled'"
+                  >
+                    ● {{ apt.status }}
+                  </span>
+                  <span
+                    class="pill"
+                    [class.pill-normal]="apt.priority === 'Normal'"
+                    [class.pill-urgent]="apt.priority === 'Urgent'"
+                    [class.pill-emergency]="apt.priority === 'Emergency'"
+                  >
+                    {{ apt.priority }}
+                  </span>
+                </div>
+                <div class="detail-sub">{{ apt.patientId }} · Booked for {{ apt.date }} at {{ apt.time }}</div>
+              </div>
+            </div>
+            <button class="btn-close" (click)="closeDetails()" aria-label="Close modal">✕</button>
+          </div>
+
+          <!-- Modal Body with 3 Sections -->
+          <div class="detail-body">
+            <!-- Section 1: Patient Details -->
+            <div class="detail-section">
+              <div class="section-badge-title">
+                <span class="step-num">1</span>
+                <span>Patient Details</span>
+              </div>
+              <div class="info-grid">
+                <div class="info-item">
+                  <span class="info-k">Patient ID (UHID)</span>
+                  <span class="info-v mono">{{ apt.patientId }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-k">Patient Name</span>
+                  <span class="info-v highlight">{{ apt.patientName }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-k">Age & Gender</span>
+                  <span class="info-v">{{ apt.age }} Years · {{ apt.gender }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-k">Mobile Number</span>
+                  <span class="info-v">📞 {{ apt.mobileNumber }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-k">Email Address</span>
+                  <span class="info-v">{{ apt.email || '—' }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-k">Blood Group</span>
+                  <span class="info-v">{{ apt.bloodGroup || '—' }}</span>
+                </div>
+                <div class="info-item info-full">
+                  <span class="info-k">Address</span>
+                  <span class="info-v">{{ apt.address || '—' }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Section 2: Appointment Details -->
+            <div class="detail-section">
+              <div class="section-badge-title">
+                <span class="step-num">2</span>
+                <span>Appointment Details</span>
+              </div>
+              <div class="info-grid">
+                <div class="info-item">
+                  <span class="info-k">Appointment ID</span>
+                  <span class="info-v mono">{{ apt.id }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-k">Date & Time</span>
+                  <span class="info-v">📅 {{ apt.date }} at {{ apt.time }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-k">Appointment Type</span>
+                  <span class="info-v">{{ apt.type }} Consultation</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-k">Department</span>
+                  <span class="info-v">{{ apt.department }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-k">Priority</span>
+                  <span class="info-v">{{ apt.priority }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-k">Queue Status</span>
+                  <span class="info-v">{{ apt.status }}</span>
+                </div>
+                <div class="info-item info-full">
+                  <span class="info-k">Reason for Visit / Symptoms</span>
+                  <span class="info-v italic-note">{{ apt.reason || 'Routine general medical consultation' }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Section 3: Doctor Details -->
+            <div class="detail-section">
+              <div class="section-badge-title">
+                <span class="step-num">3</span>
+                <span>Doctor Details</span>
+              </div>
+              <div class="doc-card-view">
+                <div class="doc-avatar">🩺</div>
+                <div style="flex: 1;">
+                  <div class="doc-name-lg">{{ apt.doctorName }}</div>
+                  <div class="doc-spec-lg">{{ apt.doctorSpecialization }}</div>
+                  <div class="doc-chips">
+                    <span class="doc-chip">🆔 ID: {{ apt.doctorId }}</span>
+                    <span class="doc-chip">🏢 Department: {{ apt.department }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal Footer with Quick Actions -->
+          <div class="detail-footer">
+            <div class="quick-status-group">
+              <span style="font-size: 12px; font-weight: 600; color: #64748b;">Change Status:</span>
+              <button
+                class="btn btn-outline btn-xs"
+                [class.btn-selected]="apt.status === 'Confirmed'"
+                (click)="updateStatus(apt, 'Confirmed')"
+              >
+                Confirmed
+              </button>
+              <button
+                class="btn btn-outline btn-xs"
+                [class.btn-selected]="apt.status === 'Arrived'"
+                (click)="updateStatus(apt, 'Arrived')"
+              >
+                Arrived
+              </button>
+              <button
+                class="btn btn-outline btn-xs"
+                [class.btn-selected]="apt.status === 'In-Consultation'"
+                (click)="updateStatus(apt, 'In-Consultation')"
+              >
+                In-Consultation
+              </button>
+              <button
+                class="btn btn-outline btn-xs"
+                [class.btn-selected]="apt.status === 'Completed'"
+                (click)="updateStatus(apt, 'Completed')"
+              >
+                Completed
+              </button>
+            </div>
+
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-outline btn-sm" (click)="openSlip(apt)">
+                🖨️ Print Token Slip
+              </button>
+              <button class="btn btn-primary btn-sm" (click)="closeDetails()">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
   `,
 })
 export class AppointmentListPage implements OnInit {
@@ -1341,7 +2108,151 @@ export class AppointmentListPage implements OnInit {
   selectedStatusFilter = signal('ALL');
   selectedPriorityFilter = signal('ALL');
 
+  // Calendar State & Logic (Default Today)
+  todayStr = new Date().toISOString().split('T')[0];
+  selectedDateFilter = signal(new Date().toISOString().split('T')[0]);
+  isCalendarOpen = signal(false);
+
+  calendarYear = signal(new Date().getFullYear());
+  calendarMonth = signal(new Date().getMonth());
+
+  monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+
+  calendarCells = computed(() => {
+    const year = this.calendarYear();
+    const month = this.calendarMonth();
+    const today = this.todayStr;
+    const selected = this.selectedDateFilter();
+
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const prevMonthDays = new Date(year, month, 0).getDate();
+
+    const cells: Array<{
+      key: string;
+      dayNum: number;
+      dateStr: string;
+      isCurrentMonth: boolean;
+      isToday: boolean;
+      isSelected: boolean;
+    }> = [];
+
+    for (let i = firstDayIndex - 1; i >= 0; i--) {
+      const dayNum = prevMonthDays - i;
+      const prevM = month === 0 ? 11 : month - 1;
+      const prevY = month === 0 ? year - 1 : year;
+      const dateStr = `${prevY}-${String(prevM + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+      cells.push({
+        key: `p-${dayNum}`,
+        dayNum,
+        dateStr,
+        isCurrentMonth: false,
+        isToday: dateStr === today,
+        isSelected: dateStr === selected,
+      });
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      cells.push({
+        key: `c-${d}`,
+        dayNum: d,
+        dateStr,
+        isCurrentMonth: true,
+        isToday: dateStr === today,
+        isSelected: dateStr === selected,
+      });
+    }
+
+    const totalSlots = cells.length > 35 ? 42 : 35;
+    const remaining = totalSlots - cells.length;
+    for (let n = 1; n <= remaining; n++) {
+      const nextM = month === 11 ? 0 : month + 1;
+      const nextY = month === 11 ? year + 1 : year;
+      const dateStr = `${nextY}-${String(nextM + 1).padStart(2, '0')}-${String(n).padStart(2, '0')}`;
+      cells.push({
+        key: `n-${n}`,
+        dayNum: n,
+        dateStr,
+        isCurrentMonth: false,
+        isToday: dateStr === today,
+        isSelected: dateStr === selected,
+      });
+    }
+
+    return cells;
+  });
+
+  formattedFilterDate = computed(() => {
+    const val = this.selectedDateFilter();
+    if (!val || val === 'ALL') return 'All Dates';
+    if (val === this.todayStr) {
+      return `Today (${this.formatPrettyDate(val)})`;
+    }
+    return this.formatPrettyDate(val);
+  });
+
+  formatPrettyDate(val: string): string {
+    const parts = val.split('-');
+    if (parts.length === 3) {
+      const mNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const m = mNames[Number(parts[1]) - 1] || parts[1];
+      return `${parts[2]} ${m}, ${parts[0]}`;
+    }
+    return val;
+  }
+
+  toggleCalendar(): void {
+    this.isCalendarOpen.update((v) => !v);
+  }
+
+  prevMonth(): void {
+    if (this.calendarMonth() === 0) {
+      this.calendarMonth.set(11);
+      this.calendarYear.update((y) => y - 1);
+    } else {
+      this.calendarMonth.update((m) => m - 1);
+    }
+  }
+
+  nextMonth(): void {
+    if (this.calendarMonth() === 11) {
+      this.calendarMonth.set(0);
+      this.calendarYear.update((y) => y + 1);
+    } else {
+      this.calendarMonth.update((m) => m + 1);
+    }
+  }
+
+  selectCalendarDate(dateStr: string): void {
+    this.selectedDateFilter.set(dateStr);
+    this.isCalendarOpen.set(false);
+  }
+
+  selectToday(): void {
+    this.selectedDateFilter.set(this.todayStr);
+    this.calendarYear.set(new Date().getFullYear());
+    this.calendarMonth.set(new Date().getMonth());
+    this.isCalendarOpen.set(false);
+  }
+
+  setTodayDate(): void {
+    this.selectToday();
+  }
+
+  selectAllDates(): void {
+    this.selectedDateFilter.set('ALL');
+    this.isCalendarOpen.set(false);
+  }
+
   // Form Signals & Models
+  patientType = signal<'new' | 'existing'>('new');
+  selectedExistingUhid = signal('');
+  existingUhidSearch = signal('');
+  showUhidSuggestions = signal(false);
   formPatientId = signal('UHID-2026-00042');
   formAppointmentId = signal('APT-2026-00105');
   formPatientName = '';
@@ -1387,6 +2298,7 @@ export class AppointmentListPage implements OnInit {
     const doc = this.selectedDoctorFilter();
     const st = this.selectedStatusFilter();
     const prio = this.selectedPriorityFilter();
+    const dt = this.selectedDateFilter();
 
     return this.appointments().filter((a) => {
       const matchQuery =
@@ -1400,17 +2312,198 @@ export class AppointmentListPage implements OnInit {
       const matchDoc = doc === 'ALL' || a.doctorName === doc;
       const matchStatus = st === 'ALL' || a.status === st;
       const matchPrio = prio === 'ALL' || a.priority === prio;
+      const matchDate = !dt || dt === 'ALL' || a.date === dt;
 
-      return matchQuery && matchDoc && matchStatus && matchPrio;
+      return matchQuery && matchDoc && matchStatus && matchPrio && matchDate;
     });
   });
 
-  openAddForm(): void {
+  // ── Existing Patients Registry ──
+  knownPatients = [
+    {
+      uhid: 'UHID-2026-00012',
+      name: 'Ramesh Kumar',
+      age: 48,
+      gender: 'Male' as const,
+      mobileNumber: '9876543210',
+      address: 'Plot 42, Jubilee Hills, Hyderabad',
+      bloodGroup: 'B+',
+    },
+    {
+      uhid: 'UHID-2026-00018',
+      name: 'Sneha Patel',
+      age: 32,
+      gender: 'Female' as const,
+      mobileNumber: '9823456789',
+      email: 'sneha.patel@gmail.com',
+      address: 'Flat 302, Green Meadows, Banjara Hills',
+      bloodGroup: 'O+',
+    },
+    {
+      uhid: 'UHID-2026-00025',
+      name: 'Vijay Deshmukh',
+      age: 61,
+      gender: 'Male' as const,
+      mobileNumber: '9765432190',
+      address: 'Sector 4, KPHB Colony',
+      bloodGroup: 'A+',
+    },
+    {
+      uhid: 'UHID-2026-00031',
+      name: 'Master Aarav Reddy',
+      age: 7,
+      gender: 'Male' as const,
+      mobileNumber: '9988776655',
+      email: 'reddy.family@gmail.com',
+      address: 'H.No 12-4, Madhapur',
+      bloodGroup: 'AB+',
+    },
+  ];
+
+  existingPatientsList = computed(() => {
+    const map = new Map<string, {
+      uhid: string;
+      name: string;
+      age: number;
+      gender: 'Male' | 'Female' | 'Other';
+      mobileNumber: string;
+      email?: string;
+      address?: string;
+      bloodGroup?: string;
+    }>();
+
+    for (const p of this.knownPatients) {
+      map.set(p.uhid, p);
+    }
+
+    for (const a of this.appointments()) {
+      if (!map.has(a.patientId)) {
+        map.set(a.patientId, {
+          uhid: a.patientId,
+          name: a.patientName,
+          age: a.age,
+          gender: a.gender,
+          mobileNumber: a.mobileNumber,
+          email: a.email,
+          address: a.address,
+          bloodGroup: a.bloodGroup,
+        });
+      }
+    }
+
+    return Array.from(map.values());
+  });
+
+  matchingPatients = computed(() => {
+    const q = this.existingUhidSearch().toLowerCase().trim();
+    if (!q) {
+      return this.existingPatientsList();
+    }
+    return this.existingPatientsList().filter(
+      (p) =>
+        p.uhid.toLowerCase().includes(q) ||
+        p.name.toLowerCase().includes(q) ||
+        p.mobileNumber.includes(q),
+    );
+  });
+
+  onUhidSearchInput(query: string): void {
+    this.existingUhidSearch.set(query);
+    this.showUhidSuggestions.set(true);
+
+    const exact = this.existingPatientsList().find(
+      (p) => p.uhid.toLowerCase() === query.trim().toLowerCase(),
+    );
+    if (exact) {
+      this.onSelectExistingPatient(exact.uhid);
+    }
+  }
+
+  selectExistingPatientFromSearch(pat: {
+    uhid: string;
+    name: string;
+    age: number;
+    gender: 'Male' | 'Female' | 'Other';
+    mobileNumber: string;
+    email?: string;
+    address?: string;
+    bloodGroup?: string;
+  }): void {
+    this.existingUhidSearch.set(pat.uhid);
+    this.showUhidSuggestions.set(false);
+    this.onSelectExistingPatient(pat.uhid);
+  }
+
+  clearUhidSearch(): void {
+    this.existingUhidSearch.set('');
+    this.showUhidSuggestions.set(true);
+    this.selectedExistingUhid.set('');
+    this.formPatientId.set('');
+    this.formPatientName = '';
+    this.formAge = null;
+    this.formMobile = '';
+    this.formEmail = '';
+    this.formAddress = '';
+    this.formBloodGroup = '';
+  }
+
+  onUhidBlur(): void {
+    setTimeout(() => {
+      this.showUhidSuggestions.set(false);
+    }, 250);
+  }
+
+  generateNewUhid(): string {
     const nextNum = this.appointments().length + 1;
-    this.formPatientId.set(`UHID-2026-${String(nextNum + 40).padStart(5, '0')}`);
+    return `UHID-2026-${String(nextNum + 45).padStart(5, '0')}`;
+  }
+
+  onPatientTypeChange(type: 'new' | 'existing'): void {
+    this.patientType.set(type);
+    if (type === 'new') {
+      this.selectedExistingUhid.set('');
+      this.existingUhidSearch.set('');
+      this.showUhidSuggestions.set(false);
+      this.formPatientId.set(this.generateNewUhid());
+      this.formPatientName = '';
+      this.formAge = null;
+      this.formGender = 'Male';
+      this.formMobile = '';
+      this.formEmail = '';
+      this.formAddress = '';
+      this.formBloodGroup = '';
+    } else {
+      this.existingUhidSearch.set('');
+      this.showUhidSuggestions.set(true);
+    }
+  }
+
+  onSelectExistingPatient(uhid: string): void {
+    this.selectedExistingUhid.set(uhid);
+    if (!uhid) return;
+    const pat = this.existingPatientsList().find((p) => p.uhid === uhid);
+    if (pat) {
+      this.formPatientId.set(pat.uhid);
+      this.existingUhidSearch.set(pat.uhid);
+      this.formPatientName = pat.name;
+      this.formAge = pat.age;
+      this.formGender = pat.gender;
+      this.formMobile = pat.mobileNumber;
+      this.formEmail = pat.email || '';
+      this.formAddress = pat.address || '';
+      this.formBloodGroup = pat.bloodGroup || '';
+    }
+  }
+
+  openAddForm(): void {
+    this.patientType.set('new');
+    this.selectedExistingUhid.set('');
+    this.formPatientId.set(this.generateNewUhid());
+    const nextNum = this.appointments().length + 1;
     this.formAppointmentId.set(`APT-2026-${String(nextNum + 100).padStart(5, '0')}`);
     this.formPatientName = '';
     this.formAge = null;
+    this.formGender = 'Male';
     this.formMobile = '';
     this.formEmail = '';
     this.formAddress = '';
@@ -1480,6 +2573,7 @@ export class AppointmentListPage implements OnInit {
     this.selectedDoctorFilter.set('ALL');
     this.selectedStatusFilter.set('ALL');
     this.selectedPriorityFilter.set('ALL');
+    this.selectedDateFilter.set(this.todayStr);
   }
 
   openSlip(apt: Appointment): void {
@@ -1492,5 +2586,16 @@ export class AppointmentListPage implements OnInit {
 
   printSlip(): void {
     window.print();
+  }
+
+  // Complete detail view signals & methods
+  selectedAppointment = signal<Appointment | null>(null);
+
+  viewDetails(apt: Appointment): void {
+    this.selectedAppointment.set(apt);
+  }
+
+  closeDetails(): void {
+    this.selectedAppointment.set(null);
   }
 }
