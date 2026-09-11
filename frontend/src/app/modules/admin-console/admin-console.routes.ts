@@ -2,10 +2,12 @@ import { Route, Routes } from '@angular/router';
 import { ADMIN_MENU, REGISTRATION_MENU, ACCESSION_MENU, AdminGroup } from '../../core/admin-menu';
 import { ModulePlaceholderPage } from './module-placeholder.page';
 import { RegisterPatientPage } from './register-patient.page';
+import { AppointmentListPage } from './appointment-list.page';
 
 /** Menu paths that have a real page; everything else falls back to the placeholder. */
 const IMPLEMENTED: Record<string, any> = {
   '/registration': RegisterPatientPage,
+  '/registration/appointments/list': AppointmentListPage,
 };
 
 const strip = (p: string) => p.replace(/^\//, '');
