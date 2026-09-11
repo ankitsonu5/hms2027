@@ -13,7 +13,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 
-const BASE = 'http://localhost:3000/api/v1';
+import { API_BASE } from '../../core/api-base';
 
 @Component({
   selector: 'hms-register-patient',
@@ -815,7 +815,7 @@ export class RegisterPatientPage implements OnInit {
   /** Advisory preview of the id this registration will get. */
   private loadNextUhid(): void {
     this.http
-      .get<{ uhid: string }>(`${BASE}/patients/next-uhid`)
+      .get<{ uhid: string }>(`${API_BASE}/patients/next-uhid`)
       .subscribe({ next: (r) => this.patientId.set(r.uhid) });
   }
 
@@ -827,7 +827,7 @@ export class RegisterPatientPage implements OnInit {
   loadRegistered(): void {
     const today = new Date().toISOString().slice(0, 10);
     this.http
-      .get<{ data: Patient[] }>(`${BASE}/patients`, { params: { date: today, limit: 100 } })
+      .get<{ data: Patient[] }>(`${API_BASE}/patients`, { params: { date: today, limit: 100 } })
       .subscribe({ next: (r) => this.registered.set(r.data ?? []) });
   }
 
@@ -841,7 +841,7 @@ export class RegisterPatientPage implements OnInit {
     }
     this.searchTimer = setTimeout(() => {
       this.http
-        .get<{ data: Patient[] }>(`${BASE}/patients`, { params: { search: term, limit: 8 } })
+        .get<{ data: Patient[] }>(`${API_BASE}/patients`, { params: { search: term, limit: 8 } })
         .subscribe({ next: (r) => this.results.set(r.data ?? []) });
     }, 250);
   }
@@ -908,7 +908,7 @@ export class RegisterPatientPage implements OnInit {
     Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
 
     this.saving.set(true);
-    this.http.post<{ id: string; uhid: string }>(`${BASE}/patients`, payload).subscribe({
+    this.http.post<{ id: string; uhid: string }>(`${API_BASE}/patients`, payload).subscribe({
       next: (p) => {
         this.saving.set(false);
         this.patientId.set(p.uhid);

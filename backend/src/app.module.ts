@@ -50,8 +50,14 @@ import { ReportsModule } from './modules/reports/reports.module';
     // ── Serve Angular build ────────────────────────────────────────────────────
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'client', 'browser'),
-      exclude: ['/api/(.*)'],
-      serveStaticOptions: { fallthrough: false },
+      // path-to-regexp v8 syntax (Express 5). The old '/api/(.*)' form throws on
+      // every request, which 500'd all deep links. This excludes /api and
+      // everything under it; every other path gets the Angular index.html.
+      exclude: ['/api{/*splat}'],
+      // No `fallthrough: false`: serve-static mounts express.static *before* its
+      // index.html fallback, so with fallthrough off every non-file path such as
+      // /registration was answered 404 by express.static and never reached the
+      // SPA fallback.
     }),
   ],
 })

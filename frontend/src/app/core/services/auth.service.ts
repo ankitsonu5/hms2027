@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { tap } from 'rxjs/operators';
 
-const API = 'http://localhost:3000/api/v1';
+import { API_BASE } from '../api-base';
 const TOKEN_KEY = 'hms_token';
 const USER_KEY = 'hms_user';
 
@@ -29,7 +29,7 @@ export class AuthService {
 
   login(email: string, password: string) {
     return this.http
-      .post<{ accessToken: string; user: HmsUser }>(`${API}/auth/login`, { email, password })
+      .post<{ accessToken: string; user: HmsUser }>(`${API_BASE}/auth/login`, { email, password })
       .pipe(
         tap((res) => {
           localStorage.setItem(TOKEN_KEY, res.accessToken);

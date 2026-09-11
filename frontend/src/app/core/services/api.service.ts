@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { API_BASE } from '../api-base';
 
 export interface PagedRes<T> {
   data: T[];
@@ -9,12 +10,10 @@ export interface PagedRes<T> {
   limit: number;
 }
 
-const BASE = 'http://localhost:3000/api/v1';
-
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   protected http = inject(HttpClient);
-  protected base = BASE;
+  protected base = API_BASE;
   protected get<T>(path: string, params?: Record<string, any>): Observable<T> {
     let p = new HttpParams();
     if (params)

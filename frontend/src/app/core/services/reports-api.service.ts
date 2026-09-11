@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
-const BASE = 'http://localhost:3000/api/v1';
+import { API_BASE } from '../api-base';
 
 export interface MonthPoint {
   month: string;
@@ -38,6 +38,6 @@ export class ReportsApiService {
   private http = inject(HttpClient);
 
   overview(months = 12) {
-    return this.http.get<Overview>(`${BASE}/reports/overview`, { params: { months } });
+    return this.http.get<Overview>(`${API_BASE}/reports/overview`, { params: { months } });
   }
 }
