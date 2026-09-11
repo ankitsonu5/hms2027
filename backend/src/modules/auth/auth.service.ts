@@ -1,18 +1,58 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, OnModuleInit, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
-import { User } from './user.entity';
+import { User, UserRole } from './user.entity';
+import { Tenant } from '../tenant/tenant.entity';
 import { LoginDto } from './dto/login.dto';
 import { JwtPayload } from './strategies/jwt.strategy';
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(User) private users: Repository<User>,
+    @InjectRepository(Tenant) private tenants: Repository<Tenant>,
     private jwt: JwtService,
   ) {}
+
+  async onModuleInit() {
+    try {
+      let defaultTenant = await this.tenants.findOne({ where: { code: 'HMS001' } });
+      if (!defaultTenant) {
+        defaultTenant = await this.tenants.save(
+          this.tenants.create({
+            code: 'HMS001',
+            name: 'City Care Hospital & Medical Center',
+            email: 'admin@hospital.org',
+            phone: '+91 9876543210',
+            isActive: true,
+          }),
+        );
+        this.logger.log('Default Tenant created: HMS001');
+      }
+
+      const defaultAdmin = await this.users.findOne({ where: { email: 'admin@hospital.org' } });
+      if (!defaultAdmin) {
+        const passwordHash = await this.hashPassword('admin123');
+        await this.users.save(
+          this.users.create({
+            name: 'Dr. Krishna P Padagala',
+            email: 'admin@hospital.org',
+            passwordHash,
+            roles: [UserRole.ADMIN, UserRole.DOCTOR],
+            tenantId: defaultTenant.id,
+            isActive: true,
+          }),
+        );
+        this.logger.log('Default Admin created: admin@hospital.org / admin123');
+      }
+    } catch (err: any) {
+      this.logger.warn(`Could not seed default user: ${err?.message}`);
+    }
+  }
 
   async login(dto: LoginDto) {
     const user = await this.users.findOne({

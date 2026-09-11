@@ -43,18 +43,18 @@ export const ADMIN_MENU: AdminGroup[] = [
     ],
   },
   {
-    label: 'Referral Management',
-    path: '/referral-management',
+    label: 'Clinician Management',
+    path: '/clinician-management',
     icon: svg('<path d="M7 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM17 20a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M9.5 8.5 15 15"/>'),
   },
   {
-    label: 'Organisation Management',
-    path: '/organisation-management',
+    label: 'Client Management',
+    path: '/client-management',
     icon: svg('<path d="M4 21V6l7-3v18M11 21V9l7 3v9M3 21h18"/>'),
   },
   {
-    label: 'Profile & Report Management',
-    path: '/profile-report',
+    label: 'Test and Profile Management',
+    path: '/test-profile-management',
     icon: svg('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>'),
     children: [
       { label: 'Test List', path: 'test-list' },
@@ -79,8 +79,8 @@ export const ADMIN_MENU: AdminGroup[] = [
     icon: svg('<circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/>'),
   },
   {
-    label: 'List & Group Management',
-    path: '/list-group',
+    label: 'Rate/Tariff Management',
+    path: '/rate-tariff-management',
     icon: svg('<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>'),
     children: [
       { label: 'List Management', path: 'list-management' },
@@ -88,13 +88,13 @@ export const ADMIN_MENU: AdminGroup[] = [
     ],
   },
   {
-    label: 'Doctor Management',
-    path: '/doctor',
+    label: 'Lab Consultant Management',
+    path: '/lab-consultant',
     icon: svg('<path d="M6 2v6a6 6 0 0 0 12 0V2"/><path d="M12 14v3a4 4 0 0 0 8 0v-1"/><circle cx="20" cy="15" r="2"/>'),
     children: [
-      { label: 'Doctor List', path: 'list' },
-      { label: 'Doctor Revenue Management', path: 'revenue-management' },
-      { label: 'Doctor Revenue Tracker', path: 'revenue-tracker' },
+      { label: 'Lab Consultant List', path: 'list' },
+      { label: 'Lab Consultant Revenue Management', path: 'revenue-management' },
+      { label: 'Lab Consultant Revenue Tracker', path: 'revenue-tracker' },
     ],
   },
   {

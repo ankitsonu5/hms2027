@@ -537,7 +537,7 @@ export interface NavSection {
       .sidebar__label {
         flex: 1;
         min-width: 0;
-        /* Long admin labels ("Profile & Report Management") wrap instead of clipping. */
+        /* Long admin labels ("Test and Profile Management") wrap instead of clipping. */
         white-space: normal;
         overflow-wrap: anywhere;
         line-height: 1.25;
