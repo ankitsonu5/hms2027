@@ -97,6 +97,13 @@ export class BillingService {
       });
     }
 
+    if (query.search) {
+      qb.andWhere(
+        '(bill.billNumber ILIKE :search OR bill.patientName ILIKE :search)',
+        { search: `%${query.search}%` },
+      );
+    }
+
     if (query.dateFrom) {
       qb.andWhere('bill.billDate >= :dateFrom', { dateFrom: query.dateFrom });
     }
@@ -146,6 +153,9 @@ export class BillingService {
       encounterId: dto.encounterId,
       admissionId: dto.admissionId,
       dueDate: dto.dueDate,
+      organizationId: dto.organizationId,
+      concessionReason: dto.concessionReason,
+      concessionPercentage: dto.concessionPercentage,
       status: BillStatus.DRAFT,
     });
 

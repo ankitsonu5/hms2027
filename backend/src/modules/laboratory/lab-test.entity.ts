@@ -16,6 +16,9 @@ export class LabTest {
   @Column()
   tenantId: string;
 
+  @Column({ type: 'int', generated: 'increment' })
+  numericId: number;
+
   @Column()
   name: string;
 
@@ -39,6 +42,30 @@ export class LabTest {
 
   @Column({ default: false })
   isNotifiable: boolean;
+
+  @Column({ default: 'TEST' })
+  testType: string;
+
+  @Column({ nullable: true })
+  sampleType: string;
+
+  @Column({ nullable: true })
+  integrationCode: string;
+
+  @Column({ nullable: true })
+  procedureCode: string;
+
+  @Column({ nullable: true })
+  loincCode: string;
+
+  @Column({ nullable: true })
+  shortText: string;
+
+  @Column({ nullable: true })
+  testAlias: string;
+
+  @Column({ nullable: true })
+  icdToPin: string;
 
   @Column({ default: true })
   isActive: boolean;

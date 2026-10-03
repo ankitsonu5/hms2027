@@ -4,12 +4,22 @@ import { ModulePlaceholderPage } from './module-placeholder.page';
 import { RegisterPatientPage } from './register-patient.page';
 import { AppointmentListPage } from './appointment-list.page';
 import { AppointmentCalendarPage } from './appointment-calendar.page';
+import { TestListPage } from './test-list.page';
+import { BillingListPage } from '../billing/billing-list.page';
+import { InvoicePage } from '../billing/invoice.page';
+import { BillingFormPage } from '../billing/billing-form.page';
+import { OrganizationListPage } from './organization-list.page';
 
 /** Menu paths that have a real page; everything else falls back to the placeholder. */
 const IMPLEMENTED: Record<string, any> = {
   '/registration': RegisterPatientPage,
   '/registration/appointments/list': AppointmentListPage,
   '/registration/appointments/calendar': AppointmentCalendarPage,
+  '/registration/billing-history/bill-settlements': BillingListPage,
+  '/registration/billing-history/add-test-to-bill': BillingFormPage,
+  '/registration/billing-history/invoice': InvoicePage,
+  '/test-profile-management/test-list': TestListPage,
+  '/client-management': OrganizationListPage,
 };
 
 const strip = (p: string) => p.replace(/^\//, '');

@@ -150,6 +150,12 @@ export class LaboratoryController {
     return this.labService.updateOrder(req.user.tenantId, id, dto);
   }
 
+  @Delete('orders/:id')
+  @ApiOperation({ summary: 'Soft-delete a lab order' })
+  removeOrder(@Req() req: any, @Param('id') id: string) {
+    return this.labService.removeOrder(req.user.tenantId, id);
+  }
+
   // ── Lab Results ────────────────────────────────────────────────────────────
 
   @Get('orders/:orderId/results')

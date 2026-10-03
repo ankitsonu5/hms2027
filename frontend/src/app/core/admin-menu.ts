@@ -173,6 +173,19 @@ export const ADMIN_MENU: AdminGroup[] = [
 export const REGISTRATION_MENU: AdminGroup[] = [
   { label: 'Registration', path: '/registration', live: true, icon: svg('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>') },
   {
+    label: 'Modules',
+    path: '/registration/modules',
+    icon: svg('<path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/>'),
+    children: [
+      { label: 'Patient List', path: 'patient', link: '/patient', live: true },
+      { label: 'Laboratory', path: 'laboratory', link: '/laboratory', live: true },
+      { label: 'Pharmacy', path: 'pharmacy', link: '/pharmacy', live: true },
+      { label: 'OPD / EMR', path: 'opd', link: '/opd', live: true },
+      { label: 'Emergency', path: 'emergency', link: '/emergency', live: true },
+      { label: 'IPD / Wards', path: 'ipd', link: '/ipd', live: true },
+    ],
+  },
+  {
     label: 'Appointments',
     path: '/registration/appointments',
     icon: svg('<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>'),
@@ -227,5 +240,11 @@ export const ACCESSION_MENU: AdminGroup[] = [
 /** URL prefix → the menu that replaces the default sidebar inside that module. */
 export const MENU_CONTEXTS = [
   { prefix: '/registration', title: 'Registration', items: REGISTRATION_MENU },
+  { prefix: '/patient', title: 'Registration', items: REGISTRATION_MENU },
+  { prefix: '/laboratory', title: 'Registration', items: REGISTRATION_MENU },
+  { prefix: '/pharmacy', title: 'Registration', items: REGISTRATION_MENU },
+  { prefix: '/opd', title: 'Registration', items: REGISTRATION_MENU },
+  { prefix: '/emergency', title: 'Registration', items: REGISTRATION_MENU },
+  { prefix: '/ipd', title: 'Registration', items: REGISTRATION_MENU },
   { prefix: '/accession', title: 'Accession', items: ACCESSION_MENU },
 ];

@@ -78,4 +78,20 @@ export class CreateBillDto {
   @IsOptional()
   @IsString()
   dueDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  organizationId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  concessionReason?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  concessionPercentage?: number;
 }

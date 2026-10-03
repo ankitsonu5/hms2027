@@ -736,8 +736,8 @@ export class RegisterPatientPage implements OnInit {
   /** What a registered patient can be sent to next. */
   services = [
     { key: 'appointment', label: 'Book Appointment', hint: 'Doctor consultation', route: '/registration/appointments/list' },
-    { key: 'lab', label: 'Lab Test', hint: 'Order tests & billing', route: '/laboratory' },
-    { key: 'pharmacy', label: 'Pharmacy', hint: 'Dispense & billing', route: '/pharmacy' },
+    { key: 'lab', label: 'Lab Test', hint: 'Order tests & billing', route: '/laboratory/order/new' },
+    { key: 'pharmacy', label: 'Pharmacy', hint: 'Dispense & billing', route: '/pharmacy/sale/new' },
   ];
 
   designations = ['Mr.', 'Mrs.', 'Ms.', 'Dr.', 'Master', 'Baby', 'Baby of'];
@@ -918,7 +918,11 @@ export class RegisterPatientPage implements OnInit {
         this.okMsg.set(`Patient registered — UHID ${p.uhid}`);
         this.loadRegistered();
         this.loadNextUhid();
-        if (alsoBill) this.router.navigate(['/billing/new'], { queryParams: { patientId: p.id, uhid: p.uhid } });
+        if (alsoBill) {
+          this.router.navigate(['/billing/new'], { queryParams: { patientId: p.id, uhid: p.uhid } });
+        } else {
+          this.router.navigate(['/patient']);
+        }
       },
       error: (e) => {
         this.saving.set(false);

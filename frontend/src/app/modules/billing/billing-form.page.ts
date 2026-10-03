@@ -1,21 +1,58 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { BillingApiService } from '../../core/services/billing-api.service';
+import { LabApiService } from '../../core/services/lab-api.service';
+import { OrganizationApiService } from '../../core/services/organization-api.service';
+import { PatientPickerComponent } from '../../shared/components/patient-picker.component';
 
 type ItemCategory = 'CONSULTATION' | 'LAB' | 'PHARMACY' | 'PROCEDURE' | 'BED' | 'OTHER';
 
 @Component({
   selector: 'hms-billing-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterModule, PatientPickerComponent],
   styles: [
     `
+      @media screen {
+        .print-wrapper { display: none; }
+      }
+      @media print {
+        @page { margin: 0; }
+        body { padding: 20px !important; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .page { display: none !important; }
+        .print-wrapper { display: block !important; width: 100%; }
+
+        .print-bill { font-family: Arial, sans-serif; color: #000; width: 100%; }
+        .bill-header-row { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px; }
+        .bill-logo h2 { margin: 0; color: #4b2354; font-size: 28px; font-weight: bold; }
+        .bill-logo .sub { color: #000; font-size: 16px; font-weight: normal; margin-top: -4px; }
+        .bill-right-logo { text-align: right; }
+        .bill-right-logo h3 { margin: 0; color: #4b2354; font-size: 24px; }
+        .bill-title-row { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 5px; }
+        .bill-title { font-size: 14px; font-weight: bold; text-decoration: underline; }
+        .box { border: 2px solid #000; padding: 10px 15px; margin-bottom: 20px; }
+        .box-title { font-weight: bold; text-decoration: underline; margin-bottom: 10px; font-size: 14px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+        .field { display: flex; font-size: 12px; margin-bottom: 4px; }
+        .field .label { width: 100px; }
+        .field .sep { margin-right: 8px; }
+        .field .value { font-weight: bold; }
+        .investigation-title { font-weight: bold; text-decoration: underline; font-size: 14px; margin-bottom: 10px; padding: 0 15px; }
+        .investigation-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; padding: 0 15px; }
+        .investigation-table th { text-align: left; text-decoration: underline; font-size: 12px; padding: 5px 15px; font-weight: bold; }
+        .investigation-table th:last-child { text-align: right; }
+        .investigation-table td { padding: 5px 15px; font-size: 12px; }
+        .investigation-table td:last-child { text-align: right; }
+        .footer-notes { font-size: 10px; line-height: 1.6; margin-top: 10px; }
+      }
+
       .page {
         padding: var(--sp-6);
-        background: var(--bg-base);
-        min-height: 100vh;
+        padding: var(--sp-6);
+        background: transparent;
       }
 
       .page-header {
@@ -137,7 +174,6 @@ type ItemCategory = 'CONSULTATION' | 'LAB' | 'PHARMACY' | 'PROCEDURE' | 'BED' | 
         margin-bottom: var(--sp-3);
       }
       .table-wrap {
-        overflow-x: auto;
         margin-bottom: var(--sp-3);
       }
       table {
@@ -309,13 +345,135 @@ type ItemCategory = 'CONSULTATION' | 'LAB' | 'PHARMACY' | 'PROCEDURE' | 'BED' | 
         color: var(--clr-neutral-400);
         font-size: var(--text-sm);
       }
+
+      /* Search Dropdown */
+      .search-container {
+        position: relative;
+        margin-bottom: var(--sp-4);
+      }
+      .search-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        z-index: 100;
+        background: #fff;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+        max-height: 250px;
+        overflow-y: auto;
+      }
+      .dropdown-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        padding: var(--sp-3);
+        border: none;
+        background: none;
+        font-family: var(--font-body);
+        font-size: var(--text-sm);
+        cursor: pointer;
+        border-bottom: 1px solid var(--border-default);
+      }
+      .dropdown-item:hover {
+        background: var(--clr-primary-50);
+      }
+      .dropdown-item:last-child {
+        border-bottom: none;
+      }
     `,
   ],
   template: `
+    <!-- Print Layout (Matched to bill.docx) -->
+    <div class="print-wrapper">
+      <div class="print-bill">
+        <div class="bill-header-row">
+          <div class="bill-logo">
+            <h2>HMS</h2>
+            <div class="sub">HOSPITAL MANAGEMENT SYSTEM</div>
+          </div>
+          <div class="bill-right-logo">
+            <img [src]="'https://bwipjs-api.metafloor.com/?bcid=code128&text=' + (billId || 'NEW') + '&scale=3&includetext=true'" alt="Barcode" style="height: 40px;" />
+          </div>
+        </div>
+        
+        <div class="bill-title-row">
+          <div class="bill-title">Investigation Cash Receipt</div>
+        </div>
+
+        <div class="box">
+          <div class="box-title">Patient Details</div>
+          <div class="grid-2">
+            <div>
+              <div class="field"><div class="label" style="text-transform: uppercase;">PATIENT NAME</div><div class="sep">:</div><div class="value">{{ form.get('patientName')?.value }}</div></div>
+              <div class="field"><div class="label" style="text-transform: uppercase;">AGE / GENDER</div><div class="sep">:</div><div class="value">N/A</div></div>
+              <div class="field"><div class="label" style="text-transform: uppercase;">PHONE</div><div class="sep">:</div><div class="value">—</div></div>
+              <div class="field"><div class="label" style="text-transform: uppercase;">REF. DR</div><div class="sep">:</div><div class="value">Self</div></div>
+              <div class="field"><div class="label" style="text-transform: uppercase;">ADDRESS</div><div class="sep">:</div><div class="value">—</div></div>
+            </div>
+            <div>
+              <div class="field"><div class="label" style="text-transform: uppercase;">REQ. ID</div><div class="sep">:</div><div class="value">—</div></div>
+              <div class="field"><div class="label" style="text-transform: uppercase;">BILL ID</div><div class="sep">:</div><div class="value">{{ billId || 'NEW' }}</div></div>
+              <div class="field"><div class="label" style="text-transform: uppercase;">UID</div><div class="sep">:</div><div class="value">{{ form.get('patientId')?.value }}</div></div>
+              <div class="field"><div class="label" style="text-transform: uppercase;">BILL DATE</div><div class="sep">:</div><div class="value">{{ form.get('billDate')?.value | date:'dd/MM/yy' }}</div></div>
+              <div class="field"><div class="label" style="text-transform: uppercase;">ORGANISATION</div><div class="sep">:</div><div class="value">HMS Hospital</div></div>
+              <div class="field"><div class="label" style="text-transform: uppercase;">PAY TYPE</div><div class="sep">:</div><div class="value">CASH</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="investigation-title">Investigation Details</div>
+        <table class="investigation-table">
+          <thead>
+            <tr>
+              <th style="text-transform: uppercase;">SNO.</th>
+              <th style="text-transform: uppercase;">Test Name</th>
+              <th style="text-transform: uppercase;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of items.controls; track $index; let idx = $index) {
+              <tr>
+                <td>{{ idx + 1 }}</td>
+                <td>{{ item.get('description')?.value }}</td>
+                <td>{{ rowAmount(idx) | number:'1.2-2' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+
+        <div class="box">
+          <div class="box-title">Payment Details</div>
+          <div class="grid-3">
+            <div class="field"><div class="label" style="width: auto; margin-right: 10px; text-transform: uppercase;">TOTAL AMOUNT</div><div class="sep">:</div><div class="value">{{ totals().subtotal + totals().gst | number:'1.2-2' }}</div></div>
+            <div class="field"><div class="label" style="width: auto; margin-right: 10px; text-transform: uppercase;">NET AMOUNT</div><div class="sep">:</div><div class="value">{{ totals().grandTotal | number:'1.2-2' }}</div></div>
+            <div class="field"><div class="label" style="width: auto; margin-right: 10px; text-transform: uppercase;">CONCESSION AMOUNT</div><div class="sep">:</div><div class="value">{{ totals().discount | number:'1.2-2' }}</div></div>
+          </div>
+          <div style="margin-top: 10px;" class="grid-2">
+            <div>
+              <div class="field"><div class="label" style="text-transform: uppercase;">IN WORDS</div><div class="sep">:</div><div class="value">Amount in Words Here.</div></div>
+              <div class="field"><div class="label" style="text-transform: uppercase;">PRINT DATE</div><div class="sep">:</div><div class="value">{{ now | date:'dd/MM/yy, hh:mm a' }}</div></div>
+            </div>
+            <div>
+              <div class="field"><div class="label" style="text-transform: uppercase;">BILLED USER</div><div class="sep">:</div><div class="value">Admin</div></div>
+              <div class="field"><div class="label" style="text-transform: uppercase;">PRINT USER</div><div class="sep">:</div><div class="value">Admin</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer-notes">
+          <div>Note : Cancellations and Refunds will be through Cheque only within 7 working days. For reports Please call between 9AM to 8PM on Monday to Saturday</div>
+          <div>Powered by HMS</div>
+        </div>
+      </div>
+    </div>
+    
     <div class="page">
       <div class="page-header">
         <button class="back-btn" (click)="goBack()">&#8592; Back</button>
-        <h1 class="page-title">{{ isEdit ? 'Edit Bill' : 'New Bill' }}</h1>
+        <h1 class="page-title">{{ isEdit ? 'Edit Bill' : 'Add Test to Bill' }}</h1>
       </div>
 
       @if (loadingBill()) {
@@ -333,26 +491,49 @@ type ItemCategory = 'CONSULTATION' | 'LAB' | 'PHARMACY' | 'PROCEDURE' | 'BED' | 
               <div class="card" style="margin-bottom:var(--sp-4)">
                 <div class="section-title">Bill Details</div>
                 <div class="form-grid">
+                  <div class="form-field full">
+                    <label class="form-label" style="color:var(--clr-primary-600)">Bill ID (Search to modify existing bill)</label>
+                    <div class="search-container">
+                      <input
+                        type="text"
+                        class="form-control"
+                        placeholder="Type Bill Number or Patient Name..."
+                        [ngModel]="billSearchTerm()"
+                        (ngModelChange)="onBillSearch($event)"
+                        [ngModelOptions]="{ standalone: true }"
+                        (focus)="onBillFocus()"
+                        (blur)="hideBillDropdown()"
+                      />
+                      @if (showBillDropdown() && billSearchResults().length > 0) {
+                        <div class="search-dropdown">
+                          @for (b of billSearchResults(); track b.id) {
+                            <button type="button" class="dropdown-item" (mousedown)="selectBill(b.id)">
+                              <span>
+                                <strong>{{ b.billNumber }}</strong>
+                                <span style="color:var(--clr-neutral-500); margin-left:8px;">{{ b.patientName }}</span>
+                              </span>
+                              <span style="font-weight:var(--fw-semibold); color:var(--clr-primary-700)">₹{{ b.grandTotal }}</span>
+                            </button>
+                          }
+                        </div>
+                      }
+                    </div>
+                  </div>
+
                   <div class="form-field">
-                    <label class="form-label"
-                      >Patient ID <span class="required-star">*</span></label
-                    >
-                    <input
-                      class="form-control"
-                      [class.invalid]="isInvalid('patientId')"
-                      type="text"
-                      formControlName="patientId"
-                      placeholder="e.g. P-00123"
+                    <label class="form-label">Patient <span class="required-star">*</span></label>
+                    <hms-patient-picker 
+                      formControlName="patientId" 
+                      [invalid]="isInvalid('patientId')" 
+                      (patientSelected)="onPatientSelected($event)" 
                     />
                     @if (isInvalid('patientId')) {
-                      <span class="field-error">Patient ID is required.</span>
+                      <span class="field-error">Patient is required.</span>
                     }
                   </div>
 
                   <div class="form-field">
-                    <label class="form-label"
-                      >Patient Name <span class="required-star">*</span></label
-                    >
+                    <label class="form-label">Patient Name <span class="required-star">*</span></label>
                     <input
                       class="form-control"
                       [class.invalid]="isInvalid('patientName')"
@@ -378,6 +559,16 @@ type ItemCategory = 'CONSULTATION' | 'LAB' | 'PHARMACY' | 'PROCEDURE' | 'BED' | 
                       placeholder="Optional notes…"
                     ></textarea>
                   </div>
+
+                  <div class="form-field full">
+                    <label class="form-label">Referral Partner / Organization</label>
+                    <select class="form-control" formControlName="organizationId" (change)="onOrganizationChange()">
+                      <option [value]="null">None (Retail Patient)</option>
+                      @for (org of organizations(); track org.id) {
+                        <option [value]="org.id">{{ org.name }}</option>
+                      }
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -386,7 +577,7 @@ type ItemCategory = 'CONSULTATION' | 'LAB' | 'PHARMACY' | 'PROCEDURE' | 'BED' | 
                 <div class="items-header">
                   <div class="section-title" style="margin-bottom:0">Line Items</div>
                   <button type="button" class="btn btn-outline btn-sm" (click)="addRow()">
-                    + Add Row
+                    + Add Test
                   </button>
                 </div>
                 <div class="table-wrap">
@@ -414,16 +605,32 @@ type ItemCategory = 'CONSULTATION' | 'LAB' | 'PHARMACY' | 'PROCEDURE' | 'BED' | 
                           </td>
                         </tr>
                       }
-                      @for (row of items.controls; track $index) {
-                        <tr [formGroupName]="$index">
-                          <td class="col-desc">
+                      @for (row of items.controls; track $index; let rowIndex = $index) {
+                        <tr [formGroupName]="rowIndex">
+                          <td class="col-desc" style="position: relative;">
                             <input
                               class="form-control"
-                              [class.invalid]="isItemInvalid($index, 'description')"
+                              [class.invalid]="isItemInvalid(rowIndex, 'description')"
                               type="text"
                               formControlName="description"
-                              placeholder="Description"
+                              placeholder="Description or test name..."
+                              (input)="onRowTestSearch(rowIndex, $event)"
+                              (focus)="activeRowIndex.set(rowIndex)"
+                              (blur)="hideRowTestDropdown()"
                             />
+                            @if (activeRowIndex() === rowIndex && rowTestSearchResults().length > 0) {
+                              <div class="search-dropdown">
+                                @for (t of rowTestSearchResults(); track t.id) {
+                                  <button type="button" class="dropdown-item" (mousedown)="selectRowTest(rowIndex, t)">
+                                    <span>
+                                      <strong>{{ t.name }}</strong>
+                                      <span style="color:var(--clr-neutral-500); margin-left:8px;">{{ t.code || t.numericId }}</span>
+                                    </span>
+                                    <span style="font-weight:var(--fw-semibold); color:var(--clr-primary-700)">₹{{ t.price }}</span>
+                                  </button>
+                                }
+                              </div>
+                            }
                           </td>
                           <td class="col-cat">
                             <select class="form-control" formControlName="category">
@@ -492,6 +699,34 @@ type ItemCategory = 'CONSULTATION' | 'LAB' | 'PHARMACY' | 'PROCEDURE' | 'BED' | 
                 </div>
               </div>
 
+              <div class="card" style="margin-top:var(--sp-4)">
+                <div class="section-title">General Concession</div>
+                <div class="form-grid">
+                  <div class="form-field">
+                    <label class="form-label">Concession Reason</label>
+                    <select class="form-control" formControlName="concessionReason" (change)="applyConcession()">
+                      <option value="">None</option>
+                      <option value="Staff Family">Staff Family</option>
+                      <option value="Senior Citizen">Senior Citizen</option>
+                      <option value="Special Case">Special Case</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div class="form-field">
+                    <label class="form-label">Discount %</label>
+                    <input
+                      class="form-control"
+                      type="number"
+                      min="0"
+                      max="100"
+                      formControlName="concessionPercentage"
+                      placeholder="e.g. 10"
+                      (input)="applyConcession()"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <!-- Footer actions -->
               <div class="form-footer">
                 <div class="form-field status-field">
@@ -502,6 +737,9 @@ type ItemCategory = 'CONSULTATION' | 'LAB' | 'PHARMACY' | 'PROCEDURE' | 'BED' | 
                   </select>
                 </div>
                 <button type="button" class="btn btn-outline" (click)="goBack()">Cancel</button>
+                @if (isEdit) {
+                  <button type="button" class="btn btn-outline" (click)="printBill()">Print Bill</button>
+                }
                 <button
                   type="submit"
                   class="btn btn-primary"
@@ -542,6 +780,8 @@ type ItemCategory = 'CONSULTATION' | 'LAB' | 'PHARMACY' | 'PROCEDURE' | 'BED' | 
 })
 export class BillingFormPage implements OnInit {
   private api = inject(BillingApiService);
+  private labApi = inject(LabApiService);
+  private orgApi = inject(OrganizationApiService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private fb = inject(FormBuilder);
@@ -551,6 +791,17 @@ export class BillingFormPage implements OnInit {
   loadingBill = signal(false);
   submitting = signal(false);
   errorMsg = signal('');
+  now = new Date();
+
+  organizations = signal<any[]>([]);
+  organizationRates = signal<any[]>([]);
+
+  billSearchTerm = signal('');
+  billSearchResults = signal<any[]>([]);
+  showBillDropdown = signal(false);
+
+  activeRowIndex = signal<number | null>(null);
+  rowTestSearchResults = signal<any[]>([]);
 
   totals = signal({ subtotal: 0, discount: 0, gst: 0, grandTotal: 0 });
 
@@ -560,6 +811,9 @@ export class BillingFormPage implements OnInit {
     billDate: [this._today()],
     notes: [''],
     status: ['DRAFT'],
+    organizationId: [null],
+    concessionReason: [''],
+    concessionPercentage: [null],
     items: this.fb.array([]),
   });
 
@@ -568,6 +822,10 @@ export class BillingFormPage implements OnInit {
   }
 
   ngOnInit() {
+    this.orgApi.list().subscribe({
+      next: (res) => this.organizations.set(res || [])
+    });
+
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.isEdit = true;
@@ -588,7 +846,15 @@ export class BillingFormPage implements OnInit {
           billDate: bill.billDate?.slice(0, 10) ?? this._today(),
           notes: bill.notes ?? '',
           status: bill.status ?? 'DRAFT',
+          organizationId: bill.organizationId ?? null,
+          concessionReason: bill.concessionReason ?? '',
+          concessionPercentage: bill.concessionPercentage ?? null,
         });
+        if (bill.organizationId) {
+          this.orgApi.getRates(bill.organizationId).subscribe(rates => {
+            this.organizationRates.set(rates || []);
+          });
+        }
         this.items.clear();
         const rows: any[] = bill.items ?? [];
         rows.forEach((item) => {
@@ -603,6 +869,116 @@ export class BillingFormPage implements OnInit {
         this.loadingBill.set(false);
       },
     });
+  }
+
+  onPatientSelected(patient: any) {
+    if (patient) {
+      this.form.patchValue({
+        patientName: `${patient.firstName} ${patient.lastName}`,
+      });
+    } else {
+      this.form.patchValue({ patientName: '' });
+    }
+  }
+
+  onBillFocus() {
+    this.showBillDropdown.set(true);
+    if (!this.billSearchTerm().trim()) {
+      // Load recent bills when clicking before typing anything
+      this.api.list({ limit: 10 }).subscribe({
+        next: (res: any) => {
+          this.billSearchResults.set(res?.data ?? []);
+        },
+        error: () => this.billSearchResults.set([])
+      });
+    }
+  }
+
+  onBillSearch(term: string) {
+    this.billSearchTerm.set(term);
+    if (!term.trim()) {
+      this.onBillFocus();
+      return;
+    }
+    this.api.list({ search: term, limit: 10 }).subscribe({
+      next: (res: any) => {
+        this.billSearchResults.set(res?.data ?? []);
+      },
+      error: () => this.billSearchResults.set([])
+    });
+  }
+
+  hideBillDropdown() {
+    setTimeout(() => {
+      this.showBillDropdown.set(false);
+    }, 200);
+  }
+
+  onRowTestSearch(index: number, event: Event) {
+    const term = (event.target as HTMLInputElement).value;
+    if (!term.trim()) {
+      this.rowTestSearchResults.set([]);
+      return;
+    }
+    // Search tests
+    this.labApi.listTests({ limit: 10 }).subscribe({
+      next: (res) => {
+        // Front-end filtering since listTests might not have a search query yet
+        const t = term.toLowerCase();
+        const tests = (res.data ?? []).filter((test: any) => 
+          test.name.toLowerCase().includes(t) || 
+          (test.code && test.code.toLowerCase().includes(t)) ||
+          (test.numericId && String(test.numericId).includes(t))
+        );
+        this.rowTestSearchResults.set(tests);
+      },
+      error: () => this.rowTestSearchResults.set([])
+    });
+  }
+
+  hideRowTestDropdown() {
+    setTimeout(() => {
+      this.activeRowIndex.set(null);
+    }, 200);
+  }
+
+  selectRowTest(index: number, test: any) {
+    const row = this.items.at(index);
+    if (row) {
+      let price = Number(test.price ?? 0);
+      
+      // Check if there is an organization rate for this test
+      const orgRate = this.organizationRates().find(r => r.testId === test.id);
+      if (orgRate) {
+        price = Number(orgRate.customPrice);
+      }
+
+      // Apply active concession if any
+      const concessionPct = Number(this.form.value.concessionPercentage) || 0;
+
+      row.patchValue({
+        description: test.name,
+        category: 'LAB',
+        unitPrice: price,
+        quantity: 1,
+        discountPct: concessionPct,
+        gstPct: 0,
+        // Optional: keep track of the original test ID to refresh prices on org change
+        testId: test.id 
+      });
+      this.recalc();
+    }
+    this.activeRowIndex.set(null);
+    this.rowTestSearchResults.set([]);
+  }
+
+  selectBill(id: string) {
+    this.isEdit = true;
+    this.billId = id;
+    this.billSearchTerm.set('');
+    this.showBillDropdown.set(false);
+    this.router.navigate(['/billing', id], { replaceUrl: true });
+    this.loadBill(id);
   }
 
   addRow() {
@@ -642,6 +1018,12 @@ export class BillingFormPage implements OnInit {
     return base - disc + gstAmt;
   }
 
+  printBill() {
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  }
+
   submit() {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -650,11 +1032,34 @@ export class BillingFormPage implements OnInit {
     this.submitting.set(true);
     this.errorMsg.set('');
 
-    const value = this.form.value;
-    const body = {
-      ...value,
-      grandTotal: this.totals().grandTotal,
+    const formValue = this.form.value;
+    const items = formValue.items.map((item: any, i: number) => {
+      const base = this._rowBase(i);
+      const discount = this._rowDiscount(i, base);
+      const gst = this._rowGst(i, base - discount);
+      return {
+        description: item.description,
+        category: item.category,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: discount,
+        gst: gst,
+      };
+    });
+
+    const body: any = {
+      patientId: formValue.patientId,
+      patientName: formValue.patientName,
+      notes: formValue.notes,
+      organizationId: formValue.organizationId,
+      concessionReason: formValue.concessionReason,
+      concessionPercentage: formValue.concessionPercentage,
+      items: items,
     };
+
+    if (this.isEdit) {
+      body.status = formValue.status;
+    }
 
     const req = this.isEdit ? this.api.update(this.billId!, body) : this.api.create(body);
 
@@ -692,7 +1097,31 @@ export class BillingFormPage implements OnInit {
       unitPrice: [data?.unitPrice ?? 0],
       discountPct: [data?.discountPct ?? 0],
       gstPct: [data?.gstPct ?? 0],
+      testId: [data?.testId ?? null],
     });
+  }
+
+  onOrganizationChange() {
+    const orgId = this.form.value.organizationId;
+    if (orgId && orgId !== 'null') {
+      this.form.patchValue({ status: 'PENDING' });
+      this.orgApi.getRates(orgId).subscribe(rates => {
+        this.organizationRates.set(rates || []);
+        // Note: You could auto-update existing test prices here if they are in the table
+      });
+    } else {
+      this.form.patchValue({ status: 'DRAFT' });
+      this.organizationRates.set([]);
+    }
+  }
+
+  applyConcession() {
+    const pct = Number(this.form.value.concessionPercentage) || 0;
+    for (let i = 0; i < this.items.length; i++) {
+      const row = this.items.at(i);
+      row.patchValue({ discountPct: pct }, { emitEvent: false });
+    }
+    this.recalc();
   }
 
   private _rowBase(index: number): number {

@@ -26,6 +26,9 @@ export class LabApiService extends ApiService {
   updateOrder(id: string | number, body: unknown): Observable<any> {
     return this.patch<any>(`laboratory/orders/${id}`, body);
   }
+  deleteOrder(id: string | number): Observable<any> {
+    return this.del<any>(`laboratory/orders/${id}`);
+  }
 
   getResults(orderId: string | number): Observable<any> {
     return this.get<any>(`laboratory/orders/${orderId}/results`);

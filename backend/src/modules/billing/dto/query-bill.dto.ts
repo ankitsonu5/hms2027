@@ -22,6 +22,11 @@ export class QueryBillDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsDateString()
   dateFrom?: string;
 

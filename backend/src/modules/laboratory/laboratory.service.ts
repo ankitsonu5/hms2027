@@ -146,6 +146,12 @@ export class LaboratoryService {
     return this.labOrderRepo.save(order);
   }
 
+  async removeOrder(tenantId: string, id: string): Promise<void> {
+    const order = await this.findOneOrder(tenantId, id);
+    order.isActive = false;
+    await this.labOrderRepo.save(order);
+  }
+
   // ── Lab Results ────────────────────────────────────────────────────────────
 
   async findResultsByOrder(

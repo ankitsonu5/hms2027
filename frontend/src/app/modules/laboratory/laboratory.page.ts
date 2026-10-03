@@ -299,33 +299,10 @@ import { LabApiService } from '../../core/services/lab-api.service';
       <!-- Page Header -->
       <div class="page-header">
         <h1 class="page-title">Laboratory</h1>
-        @if (activeTab() === 'orders') {
-          <button class="btn btn-primary" (click)="newOrder()">+ New Lab Order</button>
-        } @else {
-          <button class="btn btn-primary" (click)="showTestForm.set(true)">+ Add Test</button>
-        }
-      </div>
-
-      <!-- Tabs -->
-      <div class="tabs-bar">
-        <button
-          class="tab-btn"
-          [class.active]="activeTab() === 'orders'"
-          (click)="activeTab.set('orders')"
-        >
-          Orders
-        </button>
-        <button
-          class="tab-btn"
-          [class.active]="activeTab() === 'tests'"
-          (click)="activeTab.set('tests')"
-        >
-          Test Master
-        </button>
+        <button class="btn btn-primary" (click)="newOrder()">+ New Test</button>
       </div>
 
       <!-- ═══════════════ ORDERS TAB ═══════════════ -->
-      @if (activeTab() === 'orders') {
         <div class="filter-bar">
           <span class="filter-label">Status:</span>
           <select class="select-input" (change)="onStatusFilter($event)">
@@ -383,9 +360,11 @@ import { LabApiService } from '../../core/services/lab-api.service';
                       <td>{{ order.createdAt | date: 'dd MMM yyyy' }}</td>
                       <td>
                         <button class="btn btn-ghost" (click)="editOrder(order.id)">Edit</button>
+                        <button class="btn btn-ghost" (click)="viewBill(order.id)">Bill</button>
                         <button class="btn btn-ghost" (click)="enterResults(order.id)">
                           Results
                         </button>
+                        <button class="btn btn-danger-ghost" (click)="deleteOrder(order.id)">Delete</button>
                       </td>
                     </tr>
                   }
@@ -394,139 +373,8 @@ import { LabApiService } from '../../core/services/lab-api.service';
             </table>
           </div>
         </div>
-      }
 
-      <!-- ═══════════════ TEST MASTER TAB ═══════════════ -->
-      @if (activeTab() === 'tests') {
-        <!-- Inline Add Test Form -->
-        @if (showTestForm()) {
-          <div class="form-panel">
-            <p class="form-panel-title">Add New Test</p>
-            <form [formGroup]="testForm" (ngSubmit)="createTest()">
-              <div class="form-grid">
-                <div class="form-group">
-                  <label class="form-label">Name *</label>
-                  <input
-                    class="form-control"
-                    [class.invalid]="isInvalid('name')"
-                    formControlName="name"
-                    placeholder="e.g. Complete Blood Count"
-                  />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Code *</label>
-                  <input
-                    class="form-control"
-                    [class.invalid]="isInvalid('code')"
-                    formControlName="code"
-                    placeholder="e.g. CBC"
-                  />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Category *</label>
-                  <select
-                    class="form-control"
-                    [class.invalid]="isInvalid('category')"
-                    formControlName="category"
-                  >
-                    <option value="">Select…</option>
-                    <option value="Hematology">Hematology</option>
-                    <option value="Biochemistry">Biochemistry</option>
-                    <option value="Microbiology">Microbiology</option>
-                    <option value="Serology">Serology</option>
-                    <option value="Immunology">Immunology</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Unit</label>
-                  <input class="form-control" formControlName="unit" placeholder="e.g. g/dL" />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Normal Range</label>
-                  <input
-                    class="form-control"
-                    formControlName="normalRange"
-                    placeholder="e.g. 13.5–17.5"
-                  />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Method</label>
-                  <input
-                    class="form-control"
-                    formControlName="method"
-                    placeholder="e.g. Automated"
-                  />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Price (₹) *</label>
-                  <input
-                    class="form-control"
-                    [class.invalid]="isInvalid('price')"
-                    formControlName="price"
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-              <div class="form-actions">
-                <button type="submit" class="btn btn-primary" [disabled]="savingTest()">
-                  {{ savingTest() ? 'Saving…' : 'Save Test' }}
-                </button>
-                <button type="button" class="btn btn-secondary" (click)="cancelTestForm()">
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        }
 
-        <!-- Test Master Table -->
-        <div class="card">
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Code</th>
-                  <th>Category</th>
-                  <th>Unit</th>
-                  <th>Normal Range</th>
-                  <th>Price</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                @if (testsLoading()) {
-                  <tr class="loading-row">
-                    <td colspan="7">Loading tests…</td>
-                  </tr>
-                } @else if (tests().length === 0) {
-                  <tr>
-                    <td colspan="7">
-                      <div class="empty-state">No tests found. Add one above.</div>
-                    </td>
-                  </tr>
-                } @else {
-                  @for (test of tests(); track test.id) {
-                    <tr>
-                      <td>{{ test.name }}</td>
-                      <td>{{ test.code }}</td>
-                      <td>{{ test.category }}</td>
-                      <td>{{ test.unit || '—' }}</td>
-                      <td>{{ test.normalRange || '—' }}</td>
-                      <td>₹{{ test.price ?? 0 }}</td>
-                      <td>
-                        <button class="btn btn-ghost" (click)="showTestForm.set(true)">Edit</button>
-                      </td>
-                    </tr>
-                  }
-                }
-              </tbody>
-            </table>
-          </div>
-        </div>
-      }
     </div>
   `,
 })
@@ -535,31 +383,12 @@ export class LaboratoryPage implements OnInit {
   private router = inject(Router);
   private fb = inject(FormBuilder);
 
-  activeTab = signal<'orders' | 'tests'>('orders');
-
   orders = signal<any[]>([]);
   ordersLoading = signal(false);
   orderStatusFilter = signal('');
 
-  tests = signal<any[]>([]);
-  testsLoading = signal(false);
-
-  showTestForm = signal(false);
-  savingTest = signal(false);
-
-  testForm: FormGroup = this.fb.group({
-    name: ['', Validators.required],
-    code: ['', Validators.required],
-    category: ['', Validators.required],
-    unit: [''],
-    normalRange: [''],
-    method: [''],
-    price: [0, [Validators.required, Validators.min(0)]],
-  });
-
   ngOnInit(): void {
     this.loadOrders();
-    this.loadTests();
   }
 
   loadOrders(): void {
@@ -578,20 +407,6 @@ export class LaboratoryPage implements OnInit {
     });
   }
 
-  loadTests(): void {
-    this.testsLoading.set(true);
-    this.labApi.listTests().subscribe({
-      next: (res) => {
-        this.tests.set(res.data ?? []);
-        this.testsLoading.set(false);
-      },
-      error: () => {
-        this.tests.set([]);
-        this.testsLoading.set(false);
-      },
-    });
-  }
-
   onStatusFilter(event: Event): void {
     const val = (event.target as HTMLSelectElement).value;
     this.orderStatusFilter.set(val);
@@ -604,6 +419,19 @@ export class LaboratoryPage implements OnInit {
 
   editOrder(id: string): void {
     this.router.navigate(['/laboratory/order', id]);
+  }
+
+  viewBill(id: string): void {
+    this.router.navigate(['/laboratory/receipt', id]);
+  }
+
+  deleteOrder(id: string): void {
+    if (confirm('Are you sure you want to delete this order?')) {
+      this.labApi.deleteOrder(id).subscribe({
+        next: () => this.loadOrders(),
+        error: () => alert('Failed to delete order.')
+      });
+    }
   }
 
   enterResults(id: string): void {
@@ -628,34 +456,5 @@ export class LaboratoryPage implements OnInit {
       COMPLETED: 'badge-success',
     };
     return map[status] ?? 'badge-neutral';
-  }
-
-  isInvalid(field: string): boolean {
-    const ctrl = this.testForm.get(field);
-    return !!(ctrl && ctrl.invalid && (ctrl.dirty || ctrl.touched));
-  }
-
-  createTest(): void {
-    if (this.testForm.invalid) {
-      this.testForm.markAllAsTouched();
-      return;
-    }
-    this.savingTest.set(true);
-    this.labApi.createTest(this.testForm.value).subscribe({
-      next: () => {
-        this.savingTest.set(false);
-        this.testForm.reset({ price: 0 });
-        this.showTestForm.set(false);
-        this.loadTests();
-      },
-      error: () => {
-        this.savingTest.set(false);
-      },
-    });
-  }
-
-  cancelTestForm(): void {
-    this.testForm.reset({ price: 0 });
-    this.showTestForm.set(false);
   }
 }

@@ -9,14 +9,19 @@ type PaymentMode = 'CASH' | 'CARD' | 'UPI' | 'INSURANCE' | 'CGHS';
 
 interface Bill {
   id: number | string;
-  billNo: string;
+  billNumber: string;
   patientId: string;
   patientName: string;
   billDate: string;
   grandTotal: number;
-  paid: number;
-  balance: number;
+  paidAmount: number;
+  balanceAmount: number;
   status: BillStatus;
+  createdAt?: string;
+  updatedAt?: string;
+  items?: any[];
+  concessionPercentage?: number;
+  concessionReason?: string;
 }
 
 @Component({
@@ -25,6 +30,35 @@ interface Bill {
   imports: [CommonModule, ReactiveFormsModule, RouterModule],
   styles: [
     `
+      @media screen {
+        .print-wrapper { display: none; }
+      }
+      @media print {
+        @page { margin: 0; }
+        body { padding: 40px !important; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .page { display: none !important; }
+        .print-wrapper { display: block !important; width: 100%; font-family: Arial, sans-serif; }
+        
+        .invoice-header { text-align: center; margin-bottom: 20px; }
+        .invoice-header h1 { font-size: 28px; margin: 0; color: #333; font-weight: bold; }
+        .invoice-header h2 { font-size: 18px; margin: 5px 0 0; color: #666; font-weight: normal; }
+        
+        .invoice-info { display: flex; justify-content: space-between; border-bottom: 2px solid #ddd; padding-bottom: 15px; margin-bottom: 20px; font-size: 14px; }
+        .invoice-info p { margin: 5px 0; }
+        
+        .invoice-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
+        .invoice-table th { border-bottom: 2px solid #ddd; padding: 10px 5px; text-align: left; }
+        .invoice-table th.right { text-align: right; }
+        .invoice-table td { border-bottom: 1px solid #ddd; padding: 10px 5px; }
+        .invoice-table td.right { text-align: right; }
+        
+        .invoice-summary { width: 300px; margin-left: auto; font-size: 14px; }
+        .invoice-summary .row { display: flex; justify-content: space-between; padding: 5px 0; }
+        .invoice-summary .row.bold { font-weight: bold; font-size: 16px; border-top: 2px solid #ddd; margin-top: 5px; padding-top: 10px; }
+        
+        .invoice-footer { text-align: center; margin-top: 50px; font-size: 12px; color: #777; border-top: 1px solid #eee; padding-top: 15px; }
+      }
+
       .page {
         padding: var(--sp-6);
         background: var(--bg-base);
@@ -33,94 +67,79 @@ interface Bill {
 
       .page-header {
         display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: var(--sp-5);
-        flex-wrap: wrap;
-        gap: var(--sp-3);
+        flex-direction: column;
+        margin-bottom: var(--sp-4);
       }
-      .page-title {
-        font-family: var(--font-display);
-        font-size: var(--text-2xl);
-        font-weight: var(--fw-bold);
+      .breadcrumbs {
+        font-family: var(--font-body);
+        font-size: 14px;
+        color: var(--clr-neutral-600);
+        margin-bottom: var(--sp-4);
+      }
+      .breadcrumbs strong {
         color: var(--clr-neutral-900);
-        margin: 0;
+      }
+      
+      .top-actions-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #eee;
+        padding-bottom: 8px;
+        margin-bottom: var(--sp-4);
       }
 
-      .btn {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--sp-2);
-        padding: var(--sp-2) var(--sp-4);
-        border-radius: var(--radius-md);
-        font-family: var(--font-label);
+      .tabs {
+        display: flex;
+        gap: var(--sp-6);
+      }
+      .tab {
+        padding: var(--sp-2) 0;
+        cursor: pointer;
         font-size: var(--text-sm);
         font-weight: var(--fw-medium);
-        cursor: pointer;
-        border: none;
-        transition: var(--transition-fast);
+        color: var(--clr-neutral-500);
+        border-bottom: 3px solid transparent;
+        margin-bottom: -10px;
       }
-      .btn-primary {
-        background: var(--clr-primary-600);
-        color: #fff;
+      .tab.active {
+        color: var(--clr-primary-700);
+        border-bottom: 3px solid var(--clr-primary-600);
       }
-      .btn-primary:hover {
-        background: var(--clr-primary-700);
-      }
-      .btn-ghost {
-        background: transparent;
-        color: var(--clr-primary-600);
-        border: 1px solid var(--border-default);
-      }
-      .btn-ghost:hover {
-        background: var(--clr-primary-50);
-      }
-      .btn-danger-ghost {
-        background: transparent;
-        color: var(--clr-danger-600);
-        border: 1px solid var(--border-default);
-      }
-      .btn-danger-ghost:hover {
-        background: var(--clr-danger-50);
-      }
-      .btn-sm {
-        padding: var(--sp-1) var(--sp-3);
-        font-size: var(--text-xs);
-      }
-      .btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-
+      
       .filters {
         display: flex;
         gap: var(--sp-3);
-        margin-bottom: var(--sp-4);
-        flex-wrap: wrap;
+        align-items: center;
       }
-      .filter-select,
       .filter-input {
-        padding: var(--sp-2) var(--sp-3);
+        padding: 6px 12px;
         border: 1px solid var(--border-default);
-        border-radius: var(--radius-md);
+        border-radius: 4px;
         font-family: var(--font-body);
-        font-size: var(--text-sm);
-        background: var(--bg-surface);
+        font-size: 13px;
+        background: #f8f9fa;
         color: var(--clr-neutral-900);
-        min-width: 160px;
+        min-width: 200px;
       }
-      .filter-select:focus,
-      .filter-input:focus {
-        outline: none;
-        border-color: var(--clr-primary-500);
-      }
-
-      .card {
-        background: var(--bg-surface);
+      .filter-btn {
+        padding: 6px 12px;
         border: 1px solid var(--border-default);
-        border-radius: var(--radius-lg);
+        border-radius: 4px;
+        background: #f8f9fa;
+        font-size: 13px;
+        color: var(--clr-neutral-600);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      
+      .card {
+        background: #fff;
+        border: 1px solid var(--border-default);
+        border-radius: 4px;
         overflow: hidden;
-        box-shadow: var(--shadow-sm);
       }
 
       .table-wrap {
@@ -131,25 +150,23 @@ interface Bill {
         border-collapse: collapse;
       }
       thead tr {
-        background: var(--bg-muted);
+        background: #fafafa;
       }
       th {
-        padding: var(--sp-3) var(--sp-4);
+        padding: 16px 16px;
         text-align: left;
-        font-family: var(--font-label);
-        font-size: var(--text-xs);
+        font-family: var(--font-body);
+        font-size: 13px;
         font-weight: var(--fw-semibold);
         color: var(--clr-neutral-500);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
         white-space: nowrap;
       }
       td {
-        padding: var(--sp-3) var(--sp-4);
+        padding: 16px 16px;
         font-family: var(--font-body);
-        font-size: var(--text-sm);
-        color: var(--clr-neutral-800);
-        border-top: 1px solid var(--border-default);
+        font-size: 13px;
+        color: var(--clr-neutral-700);
+        border-bottom: 1px solid #f0f0f0;
         vertical-align: middle;
       }
       tbody tr:hover {
@@ -160,17 +177,10 @@ interface Bill {
       }
 
       .bill-no {
-        font-family: var(--font-label);
-        font-weight: var(--fw-semibold);
-        color: var(--clr-primary-700);
+        color: var(--clr-neutral-800);
       }
       .patient-name {
-        font-weight: var(--fw-medium);
-        color: var(--clr-neutral-900);
-      }
-      .patient-id {
-        font-size: var(--text-xs);
-        color: var(--clr-neutral-500);
+        color: var(--clr-neutral-800);
       }
 
       .amount {
@@ -189,33 +199,30 @@ interface Bill {
 
       .badge {
         display: inline-block;
-        padding: 2px var(--sp-2);
-        border-radius: var(--radius-full);
-        font-family: var(--font-label);
-        font-size: var(--text-xs);
-        font-weight: var(--fw-semibold);
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
       }
       .badge-neutral {
-        background: var(--clr-neutral-100);
-        color: var(--clr-neutral-600);
+        background: #f0f0f0;
+        color: #555;
       }
       .badge-warning {
-        background: var(--clr-warning-100);
-        color: var(--clr-warning-700);
+        background: #f0ad4e;
+        color: #fff;
       }
       .badge-success {
-        background: var(--clr-success-100);
-        color: var(--clr-success-700);
+        background: #5cb85c;
+        color: #fff;
       }
       .badge-info {
-        background: var(--clr-info-100);
-        color: var(--clr-info-700);
+        background: #5bc0de;
+        color: #fff;
       }
       .badge-danger {
-        background: var(--clr-danger-100);
-        color: var(--clr-danger-700);
+        background: #d9534f;
+        color: #fff;
       }
 
       .actions {
@@ -303,32 +310,116 @@ interface Bill {
     `,
   ],
   template: `
+    <!-- Hidden Invoice Template -->
+    <div class="print-wrapper">
+      @if (printBill()) {
+        <div class="invoice-header">
+          <h1>INVOICE</h1>
+          <h2>Health Management System</h2>
+        </div>
+        <div class="invoice-info">
+          <div>
+            <p><strong>Patient Name:</strong> {{ printBill()?.patientName }}</p>
+            <p><strong>Patient ID:</strong> {{ printBill()?.patientId }}</p>
+          </div>
+          <div style="text-align: right;">
+            <p><strong>Bill No:</strong> {{ printBill()?.billNumber || printBill()?.id }}</p>
+            <p><strong>Date:</strong> {{ printBill()?.billDate | date:'mediumDate' }}</p>
+          </div>
+        </div>
+        
+        <table class="invoice-table">
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th>Category</th>
+              <th class="right">Qty</th>
+              <th class="right">Unit Price</th>
+              <th class="right">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of printBill()?.items; track $index) {
+              <tr>
+                <td>{{ item.description }}</td>
+                <td>{{ item.category }}</td>
+                <td class="right">{{ item.quantity }}</td>
+                <td class="right">₹{{ item.unitPrice | number:'1.2-2' }}</td>
+                <td class="right">₹{{ item.amount | number:'1.2-2' }}</td>
+              </tr>
+            }
+            @if (!printBill()?.items || printBill()?.items?.length === 0) {
+              <tr><td colspan="5" style="text-align:center;">No items found.</td></tr>
+            }
+          </tbody>
+        </table>
+        
+        <div class="invoice-summary">
+          <div class="row">
+            <span>Subtotal:</span>
+            <span>₹{{ subtotal(printBill()!) | number:'1.2-2' }}</span>
+          </div>
+          @if (printBill()?.concessionPercentage) {
+            <div class="row" style="color: #666;">
+              <span>Discount ({{ printBill()?.concessionPercentage }}%):</span>
+              <span>- ₹{{ discountTotal(printBill()!) | number:'1.2-2' }}</span>
+            </div>
+          }
+          <div class="row bold">
+            <span>Total Paid:</span>
+            <span>₹{{ printBill()?.paidAmount | number:'1.2-2' }}</span>
+          </div>
+        </div>
+        
+        <div class="invoice-footer">
+          <p>Thank you for your visit.</p>
+        </div>
+      }
+    </div>
+
     <div class="page">
       <div class="page-header">
-        <h1 class="page-title">Billing</h1>
-        <button class="btn btn-primary" (click)="goNew()">+ New Bill</button>
+        <div class="breadcrumbs">
+          Billing History > <strong>Bill Settlements</strong>
+        </div>
       </div>
 
-      <div class="filters">
-        <select
-          class="filter-select"
-          [formControl]="filterForm.controls['status']"
-          (change)="load()"
-        >
-          <option value="">All Statuses</option>
-          <option value="DRAFT">Draft</option>
-          <option value="PENDING">Pending</option>
-          <option value="PAID">Paid</option>
-          <option value="PARTIAL">Partial</option>
-          <option value="CANCELLED">Cancelled</option>
-        </select>
-        <input
-          class="filter-input"
-          type="text"
-          placeholder="Search by Patient ID…"
-          [formControl]="filterForm.controls['patientId']"
-          (input)="onSearch()"
-        />
+      <div class="top-actions-bar">
+        <div class="tabs">
+          <div class="tab" [class.active]="activeTab() === 'ALL'" (click)="setActiveTab('ALL')">All Bills</div>
+          <div class="tab" [class.active]="activeTab() === 'SETTLEMENTS'" (click)="setActiveTab('SETTLEMENTS')">Bill Settlements</div>
+          <div class="tab" (click)="goNew()">Add Test To Bill</div>
+        </div>
+
+        <div class="filters">
+          <input
+            class="filter-input"
+            type="text"
+            placeholder="Search Bill / Patient Name"
+            [formControl]="filterForm.controls['search']"
+            (input)="onSearch()"
+          />
+          <select
+            class="filter-btn"
+            [formControl]="filterForm.controls['status']"
+            (change)="load()"
+            style="appearance: none; padding-right: 24px; background: #f8f9fa url('data:image/svg+xml;utf8,<svg fill=%22black%22 height=%2224%22 viewBox=%220 0 24 24%22 width=%2224%22 xmlns=%22http://www.w3.org/2000/svg%22><path d=%22M7 10l5 5 5-5z%22/></svg>') no-repeat right 4px center;"
+          >
+            <option value="">Filter Rows</option>
+            <option value="PENDING">Pending</option>
+            <option value="PARTIAL">Partial</option>
+            <option value="PAID">Complete</option>
+            <option value="DRAFT">Draft</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+          <input 
+            type="date"
+            class="filter-btn"
+            style="font-family: inherit; color: var(--clr-neutral-600);"
+            [formControl]="filterForm.controls['date']"
+            (change)="load()"
+          />
+        </div>
       </div>
 
       @if (errorMsg()) {
@@ -343,14 +434,14 @@ interface Bill {
             <table>
               <thead>
                 <tr>
-                  <th>Bill No</th>
-                  <th>Patient</th>
-                  <th>Date</th>
-                  <th>Grand Total</th>
-                  <th>Paid</th>
-                  <th>Balance</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <th>Bill Id</th>
+                  <th>Patient Details</th>
+                  <th>Referral</th>
+                  <th>Bill</th>
+                  <th>Bill Date</th>
+                  <th>Bill Amount</th>
+                  <th>Due</th>
+                  <th>Bill Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -362,112 +453,105 @@ interface Bill {
                   </tr>
                 }
                 @for (bill of bills(); track bill.id) {
-                  <tr [class.expanded]="expandedId() === bill.id">
+                  <tr [class.expanded]="expandedId() === bill.id" (click)="togglePayment(bill)" style="cursor: pointer;">
                     <td>
-                      <span class="bill-no">{{ bill.billNo }}</span>
+                      <span class="bill-no">{{ bill.billNumber || bill.id }}</span>
                     </td>
                     <td>
                       <div class="patient-name">{{ bill.patientName }}</div>
-                      <div class="patient-id">{{ bill.patientId }}</div>
                     </td>
-                    <td>{{ bill.billDate | date: 'dd MMM yyyy' }}</td>
-                    <td class="amount amount-grand">₹{{ bill.grandTotal | number: '1.2-2' }}</td>
-                    <td class="amount">₹{{ bill.paid | number: '1.2-2' }}</td>
-                    <td
-                      class="amount"
-                      [class.balance-red]="bill.balance > 0"
-                      [class.balance-zero]="bill.balance === 0"
-                    >
-                      ₹{{ bill.balance | number: '1.2-2' }}
-                    </td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>{{ bill.billDate | date: 'E MMM dd yyyy' }}</td>
+                    <td class="amount amount-grand">{{ bill.grandTotal | number: '1.2-2' }}</td>
+                    <td class="amount">{{ bill.balanceAmount | number: '1.2-2' }}</td>
                     <td>
-                      <span class="badge" [class]="badgeClass(bill.status)">{{ bill.status }}</span>
-                    </td>
-                    <td>
-                      <div class="actions">
-                        <button class="btn btn-ghost btn-sm" (click)="goEdit(bill.id)">
-                          View / Edit
-                        </button>
-                        @if (bill.status !== 'CANCELLED' && bill.status !== 'PAID') {
-                          <button class="btn btn-ghost btn-sm" (click)="togglePayment(bill)">
-                            {{ expandedId() === bill.id ? 'Close' : 'Add Payment' }}
-                          </button>
-                          <button
-                            class="btn btn-danger-ghost btn-sm"
-                            (click)="cancelBill(bill)"
-                            [disabled]="cancelling() === bill.id"
-                          >
-                            {{ cancelling() === bill.id ? '…' : 'Cancel' }}
-                          </button>
-                        }
-                      </div>
+                      @if (isUpdated(bill)) {
+                        <span class="badge badge-info" style="margin-right: 4px;">Updated</span>
+                      }
+                      <span class="badge" [class]="badgeClass(bill.status)">{{ (bill.status === 'PAID' ? 'Complete' : 'Pending') }}</span>
                     </td>
                   </tr>
                   @if (expandedId() === bill.id) {
                     <tr class="payment-row">
                       <td colspan="8">
-                        <div class="payment-panel">
-                          <div class="payment-panel-title">Add Payment — {{ bill.billNo }}</div>
-                          <form
-                            class="payment-form"
-                            [formGroup]="paymentForm"
-                            (ngSubmit)="submitPayment(bill.id)"
-                          >
-                            <div class="form-field">
-                              <label class="form-label">Payment Mode</label>
-                              <select class="form-control" formControlName="paymentMode">
-                                <option value="CASH">Cash</option>
-                                <option value="CARD">Card</option>
-                                <option value="UPI">UPI</option>
-                                <option value="INSURANCE">Insurance</option>
-                                <option value="CGHS">CGHS</option>
-                              </select>
-                            </div>
-                            <div class="form-field">
-                              <label class="form-label">Amount (₹)</label>
-                              <input
-                                class="form-control"
-                                [class.invalid]="
-                                  paymentForm.controls['amount'].invalid &&
-                                  paymentForm.controls['amount'].touched
-                                "
-                                type="number"
-                                min="0.01"
-                                step="0.01"
-                                formControlName="amount"
-                                placeholder="0.00"
-                                style="width:120px"
-                              />
-                            </div>
-                            <div class="form-field">
-                              <label class="form-label">Transaction Ref (optional)</label>
-                              <input
-                                class="form-control"
-                                type="text"
-                                formControlName="transactionRef"
-                                placeholder="Ref / UTR"
-                                style="width:180px"
-                              />
-                            </div>
-                            <div class="form-field">
-                              <label class="form-label">&nbsp;</label>
-                              <button
-                                class="btn btn-primary"
-                                type="submit"
-                                [disabled]="paymentSubmitting() || paymentForm.invalid"
-                              >
-                                {{ paymentSubmitting() ? 'Saving…' : 'Submit Payment' }}
+                        @if (bill.status === 'PAID') {
+                          <div class="payment-panel">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                              <div>
+                                <div class="payment-panel-title">Invoice Details</div>
+                                <p style="margin:4px 0; font-size:13px; color:var(--text-secondary);"><strong>Bill No:</strong> {{ bill.billNumber || bill.id }} &nbsp;|&nbsp; <strong>Date:</strong> {{ bill.billDate | date:'mediumDate' }}</p>
+                                <p style="margin:4px 0; font-size:13px; color:var(--text-secondary);"><strong>Total Paid:</strong> ₹{{ bill.paidAmount | number:'1.2-2' }}</p>
+                              </div>
+                              <button class="btn btn-primary" (click)="doPrintInvoice(bill)">
+                                Print Invoice
                               </button>
                             </div>
-                            @if (paymentError()) {
-                              <div
-                                style="color:var(--clr-danger-600);font-size:var(--text-xs);align-self:center"
-                              >
-                                {{ paymentError() }}
+                          </div>
+                        } @else {
+                          <div class="payment-panel">
+                            <div class="payment-panel-title">Add Payment — {{ bill.billNumber || bill.id }}</div>
+                            <form
+                              class="payment-form"
+                              [formGroup]="paymentForm"
+                              (ngSubmit)="submitPayment(bill.id)"
+                            >
+                              <div class="form-field">
+                                <label class="form-label">Payment Mode</label>
+                                <select class="form-control" formControlName="paymentMode">
+                                  <option value="CASH">Cash</option>
+                                  <option value="CARD">Card</option>
+                                  <option value="UPI">UPI</option>
+                                  <option value="INSURANCE">Insurance</option>
+                                  <option value="CGHS">CGHS</option>
+                                </select>
                               </div>
-                            }
-                          </form>
-                        </div>
+                              <div class="form-field">
+                                <label class="form-label">Amount (₹)</label>
+                                <input
+                                  class="form-control"
+                                  [class.invalid]="
+                                    paymentForm.controls['amount'].invalid &&
+                                    paymentForm.controls['amount'].touched
+                                  "
+                                  type="number"
+                                  min="0.01"
+                                  step="0.01"
+                                  formControlName="amount"
+                                  placeholder="0.00"
+                                  style="width:120px"
+                                />
+                              </div>
+                              <div class="form-field">
+                                <label class="form-label">Transaction Ref (optional)</label>
+                                <input
+                                  class="form-control"
+                                  type="text"
+                                  formControlName="transactionRef"
+                                  placeholder="Ref / UTR"
+                                  style="width:180px"
+                                />
+                              </div>
+                              <div class="form-field">
+                                <label class="form-label">&nbsp;</label>
+                                <button
+                                  class="btn btn-primary"
+                                  type="submit"
+                                  [disabled]="paymentSubmitting() || paymentForm.invalid"
+                                >
+                                  {{ paymentSubmitting() ? 'Saving…' : 'Submit Payment' }}
+                                </button>
+                              </div>
+                              @if (paymentError()) {
+                                <div
+                                  style="color:var(--clr-danger-600);font-size:var(--text-xs);align-self:center"
+                                >
+                                  {{ paymentError() }}
+                                </div>
+                              }
+                            </form>
+                          </div>
+                        }
                       </td>
                     </tr>
                   }
@@ -485,18 +569,21 @@ export class BillingListPage implements OnInit {
   private router = inject(Router);
   private fb = inject(FormBuilder);
 
+  activeTab = signal<'ALL' | 'SETTLEMENTS'>('SETTLEMENTS');
   bills = signal<Bill[]>([]);
   loading = signal(false);
   errorMsg = signal('');
   cancelling = signal<string | number | null>(null);
 
   expandedId = signal<string | number | null>(null);
+  printBill = signal<Bill | null>(null);
   paymentSubmitting = signal(false);
   paymentError = signal('');
 
   filterForm = this.fb.group({
     status: [''],
-    patientId: [''],
+    search: [''],
+    date: [''],
   });
 
   paymentForm = this.fb.group({
@@ -504,6 +591,36 @@ export class BillingListPage implements OnInit {
     amount: [null as number | null, [this._positiveValidator]],
     transactionRef: [''],
   });
+
+  subtotal(bill: Bill): number {
+    return (bill.items || []).reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
+  }
+
+  discountTotal(bill: Bill): number {
+    if (!bill.concessionPercentage) return 0;
+    return (this.subtotal(bill) * bill.concessionPercentage) / 100;
+  }
+
+  doPrintInvoice(bill: Bill) {
+    this.printBill.set(bill);
+    const prevTitle = document.title;
+    const sanitize = (s: string) => (s || '').replace(/[/\\?%*:|"<>]/g, '_').trim();
+    const pid = sanitize(bill.patientId || String(bill.billNumber || bill.id));
+    const pname = sanitize(bill.patientName || 'Patient');
+
+    document.title = `${pid}_${pname}`;
+
+    const restoreTitle = () => {
+      document.title = prevTitle;
+      window.removeEventListener('afterprint', restoreTitle);
+    };
+    window.addEventListener('afterprint', restoreTitle);
+
+    setTimeout(() => {
+      window.print();
+      setTimeout(restoreTitle, 2000);
+    }, 150);
+  }
 
   private _positiveValidator(control: any) {
     const v = control.value;
@@ -516,13 +633,28 @@ export class BillingListPage implements OnInit {
     this.load();
   }
 
+  setActiveTab(tab: 'ALL' | 'SETTLEMENTS') {
+    this.activeTab.set(tab);
+    if (tab === 'SETTLEMENTS') {
+      // User wants completed/settled bills here
+      this.filterForm.patchValue({ status: 'PAID' }, { emitEvent: false });
+    } else {
+      this.filterForm.patchValue({ status: '' }, { emitEvent: false });
+    }
+    this.load();
+  }
+
   load() {
     this.loading.set(true);
     this.errorMsg.set('');
-    const { status, patientId } = this.filterForm.value;
+    const { status, search, date } = this.filterForm.value;
     const q: Record<string, any> = {};
     if (status) q['status'] = status;
-    if (patientId) q['patientId'] = patientId;
+    if (search) q['search'] = search;
+    if (date) {
+      q['dateFrom'] = date;
+      q['dateTo'] = date;
+    }
 
     this.api.list(q).subscribe({
       next: (res) => {
@@ -542,15 +674,22 @@ export class BillingListPage implements OnInit {
   }
 
   goNew() {
-    this.router.navigate(['/billing/new']);
+    this.router.navigate(['/registration/billing-history/add-test-to-bill']);
   }
 
   goEdit(id: string | number) {
     this.router.navigate(['/billing', id]);
   }
 
+  isUpdated(bill: Bill): boolean {
+    if (!bill.createdAt || !bill.updatedAt) return false;
+    const created = new Date(bill.createdAt).getTime();
+    const updated = new Date(bill.updatedAt).getTime();
+    return updated - created > 2000;
+  }
+
   cancelBill(bill: Bill) {
-    if (!confirm(`Cancel bill ${bill.billNo}? This cannot be undone.`)) return;
+    if (!confirm(`Cancel bill ${bill.billNumber}? This cannot be undone.`)) return;
     this.cancelling.set(bill.id);
     this.api.cancel(bill.id).subscribe({
       next: () => {
@@ -583,7 +722,7 @@ export class BillingListPage implements OnInit {
     this.paymentSubmitting.set(true);
     this.paymentError.set('');
     const { paymentMode, amount, transactionRef } = this.paymentForm.value;
-    const body: Record<string, any> = { paymentMode, amount };
+    const body: Record<string, any> = { paymentMode, amount, billId: String(billId) };
     if (transactionRef) body['transactionRef'] = transactionRef;
 
     this.api.addPayment(billId, body).subscribe({

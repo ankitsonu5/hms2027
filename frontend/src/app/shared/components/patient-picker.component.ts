@@ -1,4 +1,4 @@
-import { Component, DestroyRef, forwardRef, inject, signal, input } from '@angular/core';
+import { Component, DestroyRef, forwardRef, inject, signal, input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -263,6 +263,8 @@ export class PatientPickerComponent implements ControlValueAccessor {
   loading = signal(false);
   focused = signal(false);
 
+  @Output() patientSelected = new EventEmitter<PickedPatient | null>();
+
   private search$ = new Subject<string>();
   private onChange: (v: string) => void = () => {};
   private onTouched: () => void = () => {};
@@ -323,12 +325,14 @@ export class PatientPickerComponent implements ControlValueAccessor {
     this.focused.set(false);
     this.onChange(p.id);
     this.onTouched();
+    this.patientSelected.emit(p);
   }
 
   clear(): void {
     this.selected.set(null);
     this.onChange('');
     this.onTouched();
+    this.patientSelected.emit(null);
   }
 
   registerNew(): void {

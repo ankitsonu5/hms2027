@@ -25,4 +25,9 @@ export class UpdateLabOrderDto extends PartialType(CreateLabOrderDto) {
   @IsBoolean()
   @IsOptional()
   isPaid?: boolean;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  paymentMethod?: string;
 }

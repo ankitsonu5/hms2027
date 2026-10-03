@@ -56,8 +56,20 @@ export class LabOrder {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   totalAmount: number;
 
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
+  concessionPercentage: number;
+
+  @Column({ nullable: true })
+  concessionReason: string;
+
+  @Column({ nullable: true })
+  organizationId: string;
+
   @Column({ default: false })
   isPaid: boolean;
+
+  @Column({ default: 'CASH' })
+  paymentMethod: string;
 
   @Column({ default: true })
   isActive: boolean;

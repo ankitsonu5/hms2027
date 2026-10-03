@@ -984,9 +984,20 @@ export class AppointmentCalendarPage implements OnInit {
     const saved = localStorage.getItem('hms_appointments');
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
+        let parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
+          // Remove dummy appointments (any APT ID < 105)
+          parsed = parsed.filter((a: any) => {
+            if (!a.id) return true;
+            const match = a.id.match(/APT-\d{4}-(\d+)/);
+            if (match) {
+              const num = parseInt(match[1], 10);
+              return num >= 105;
+            }
+            return true;
+          });
           this.appointments.set(parsed);
+          localStorage.setItem('hms_appointments', JSON.stringify(parsed));
           return;
         }
       } catch {
@@ -1250,221 +1261,6 @@ export class AppointmentCalendarPage implements OnInit {
 
   // Helper: Seed Appointments to display rich data across days
   private createSeedAppointments(): Appointment[] {
-    const y = this.today.getFullYear();
-    const m = String(this.today.getMonth() + 1).padStart(2, '0');
-    const day = this.today.getDate();
-
-    const dToday = `${y}-${m}-${String(day).padStart(2, '0')}`;
-    const dMinus1 = `${y}-${m}-${String(Math.max(1, day - 1)).padStart(2, '0')}`;
-    const dMinus2 = `${y}-${m}-${String(Math.max(1, day - 2)).padStart(2, '0')}`;
-    const dPlus1 = `${y}-${m}-${String(day + 1).padStart(2, '0')}`;
-    const dPlus2 = `${y}-${m}-${String(day + 2).padStart(2, '0')}`;
-
-    return [
-      {
-        id: 'APT-2026-00101',
-        tokenNo: 1,
-        patientId: 'UHID-2026-00012',
-        patientName: 'Ramesh Kumar',
-        age: 48,
-        gender: 'Male',
-        mobileNumber: '9876543210',
-        date: dToday,
-        time: '09:30 AM',
-        type: 'Follow-up',
-        department: 'General Medicine',
-        priority: 'Normal',
-        status: 'In-Consultation',
-        paymentStatus: 'Paid',
-        doctorId: 'DOC-101',
-        doctorName: 'Dr. Krishna P Padagala',
-        doctorSpecialization: 'MD, General Medicine',
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: 'APT-2026-00102',
-        tokenNo: 2,
-        patientId: 'UHID-2026-00018',
-        patientName: 'Sneha Patel',
-        age: 32,
-        gender: 'Female',
-        mobileNumber: '9823456789',
-        date: dToday,
-        time: '10:15 AM',
-        type: 'New',
-        department: 'Cardiology',
-        priority: 'Urgent',
-        status: 'Arrived',
-        paymentStatus: 'Paid',
-        doctorId: 'DOC-102',
-        doctorName: 'Dr. Arun Sharma',
-        doctorSpecialization: 'DM, Cardiology',
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: 'APT-2026-00103',
-        tokenNo: 3,
-        patientId: 'UHID-2026-00025',
-        patientName: 'Vijay Deshmukh',
-        age: 61,
-        gender: 'Male',
-        mobileNumber: '9765432190',
-        date: dToday,
-        time: '11:00 AM',
-        type: 'New',
-        department: 'Orthopedics',
-        priority: 'Normal',
-        status: 'Completed',
-        paymentStatus: 'Paid',
-        doctorId: 'DOC-103',
-        doctorName: 'Dr. Priya Verma',
-        doctorSpecialization: 'MS, Orthopedics',
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: 'APT-2026-00104',
-        tokenNo: 4,
-        patientId: 'UHID-2026-00031',
-        patientName: 'Master Aarav Reddy',
-        age: 7,
-        gender: 'Male',
-        mobileNumber: '9988776655',
-        date: dToday,
-        time: '11:30 AM',
-        type: 'Emergency',
-        department: 'Pediatrics',
-        priority: 'Emergency',
-        status: 'Cancelled',
-        paymentStatus: 'Pending',
-        doctorId: 'DOC-104',
-        doctorName: 'Dr. Rajesh Gupta',
-        doctorSpecialization: 'MD, Pediatrics',
-        createdAt: new Date().toISOString(),
-      },
-      // Yesterday Appointments
-      {
-        id: 'APT-2026-00095',
-        tokenNo: 1,
-        patientId: 'UHID-2026-00008',
-        patientName: 'Meera Nambiar',
-        age: 39,
-        gender: 'Female',
-        mobileNumber: '9123456780',
-        date: dMinus1,
-        time: '10:00 AM',
-        type: 'New',
-        department: 'General Medicine',
-        priority: 'Normal',
-        status: 'Completed',
-        paymentStatus: 'Paid',
-        doctorId: 'DOC-101',
-        doctorName: 'Dr. Krishna P Padagala',
-        doctorSpecialization: 'MD, General Medicine',
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: 'APT-2026-00096',
-        tokenNo: 2,
-        patientId: 'UHID-2026-00009',
-        patientName: 'Harish Chandra',
-        age: 54,
-        gender: 'Male',
-        mobileNumber: '9876541122',
-        date: dMinus1,
-        time: '11:15 AM',
-        type: 'Follow-up',
-        department: 'Cardiology',
-        priority: 'Normal',
-        status: 'Completed',
-        paymentStatus: 'Paid',
-        doctorId: 'DOC-102',
-        doctorName: 'Dr. Arun Sharma',
-        doctorSpecialization: 'DM, Cardiology',
-        createdAt: new Date().toISOString(),
-      },
-      // Day Minus 2
-      {
-        id: 'APT-2026-00090',
-        tokenNo: 1,
-        patientId: 'UHID-2026-00003',
-        patientName: 'Kavita Joshi',
-        age: 28,
-        gender: 'Female',
-        mobileNumber: '9845123456',
-        date: dMinus2,
-        time: '02:30 PM',
-        type: 'New',
-        department: 'Orthopedics',
-        priority: 'Normal',
-        status: 'Completed',
-        paymentStatus: 'Paid',
-        doctorId: 'DOC-103',
-        doctorName: 'Dr. Priya Verma',
-        doctorSpecialization: 'MS, Orthopedics',
-        createdAt: new Date().toISOString(),
-      },
-      // Tomorrow Appointments
-      {
-        id: 'APT-2026-00108',
-        tokenNo: 1,
-        patientId: 'UHID-2026-00041',
-        patientName: 'Deepak Saxena',
-        age: 45,
-        gender: 'Male',
-        mobileNumber: '9899001122',
-        date: dPlus1,
-        time: '09:00 AM',
-        type: 'New',
-        department: 'General Medicine',
-        priority: 'Normal',
-        status: 'Confirmed',
-        paymentStatus: 'Pending',
-        doctorId: 'DOC-101',
-        doctorName: 'Dr. Krishna P Padagala',
-        doctorSpecialization: 'MD, General Medicine',
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: 'APT-2026-00109',
-        tokenNo: 2,
-        patientId: 'UHID-2026-00042',
-        patientName: 'Pooja Agarwal',
-        age: 33,
-        gender: 'Female',
-        mobileNumber: '9811223344',
-        date: dPlus1,
-        time: '10:30 AM',
-        type: 'Follow-up',
-        department: 'Cardiology',
-        priority: 'Urgent',
-        status: 'Confirmed',
-        paymentStatus: 'Paid',
-        doctorId: 'DOC-102',
-        doctorName: 'Dr. Arun Sharma',
-        doctorSpecialization: 'DM, Cardiology',
-        createdAt: new Date().toISOString(),
-      },
-      // Day Plus 2
-      {
-        id: 'APT-2026-00112',
-        tokenNo: 1,
-        patientId: 'UHID-2026-00048',
-        patientName: 'Sanjay Varma',
-        age: 50,
-        gender: 'Male',
-        mobileNumber: '9765438899',
-        date: dPlus2,
-        time: '11:00 AM',
-        type: 'New',
-        department: 'Orthopedics',
-        priority: 'Normal',
-        status: 'Confirmed',
-        paymentStatus: 'Pending',
-        doctorId: 'DOC-103',
-        doctorName: 'Dr. Priya Verma',
-        doctorSpecialization: 'MS, Orthopedics',
-        createdAt: new Date().toISOString(),
-      },
-    ];
+    return [];
   }
 }

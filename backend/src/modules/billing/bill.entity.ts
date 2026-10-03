@@ -74,6 +74,15 @@ export class Bill {
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   grandTotal: number;
 
+  @Column({ nullable: true })
+  organizationId: string;
+
+  @Column({ nullable: true })
+  concessionReason: string;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  concessionPercentage: number;
+
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   paidAmount: number;
 

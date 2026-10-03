@@ -12,6 +12,7 @@ import { IpdModule } from './modules/ipd/ipd.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { PharmacyModule } from './modules/pharmacy/pharmacy.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { OrganizationModule } from './modules/organization/organization.module';
 
 @Module({
   imports: [
@@ -59,6 +60,8 @@ import { ReportsModule } from './modules/reports/reports.module';
       // /registration was answered 404 by express.static and never reached the
       // SPA fallback.
     }),
+
+    OrganizationModule,
   ],
 })
 export class AppModule {}

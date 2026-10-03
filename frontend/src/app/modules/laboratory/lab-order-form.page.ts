@@ -1,14 +1,15 @@
 import { Component, OnInit, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { LabApiService } from '../../core/services/lab-api.service';
+import { OrganizationApiService } from '../../core/services/organization-api.service';
 import { PatientPickerComponent } from '../../shared/components/patient-picker.component';
 
 @Component({
   selector: 'hms-lab-order-form',
   standalone: true,
-  imports: [CommonModule, RouterModule, ReactiveFormsModule, PatientPickerComponent],
+  imports: [CommonModule, RouterModule, ReactiveFormsModule, FormsModule, PatientPickerComponent],
   styles: [
     `
       .page-wrap {
@@ -234,6 +235,44 @@ import { PatientPickerComponent } from '../../shared/components/patient-picker.c
         color: var(--clr-neutral-700);
       }
 
+      /* Search Dropdown */
+      .search-container {
+        position: relative;
+        margin-bottom: var(--sp-4);
+      }
+      .search-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        z-index: 100;
+        background: #fff;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+        max-height: 250px;
+        overflow-y: auto;
+      }
+      .dropdown-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        padding: var(--sp-3);
+        border: none;
+        background: none;
+        font-family: var(--font-body);
+        font-size: var(--text-sm);
+        cursor: pointer;
+        border-bottom: 1px solid var(--border-default);
+      }
+      .dropdown-item:hover {
+        background: var(--clr-primary-50);
+      }
+      .dropdown-item:last-child {
+        border-bottom: none;
+      }
+
       /* Form actions */
       .form-actions {
         display: flex;
@@ -296,7 +335,7 @@ import { PatientPickerComponent } from '../../shared/components/patient-picker.c
       <!-- Header -->
       <div class="page-header">
         <button class="back-btn" (click)="goBack()">← Back</button>
-        <h1 class="page-title">{{ isEdit() ? 'Edit Lab Order' : 'New Lab Order' }}</h1>
+        <h1 class="page-title">{{ isEdit() ? 'Edit Lab Order' : 'New Test' }}</h1>
       </div>
 
       <!-- Section 1: Patient & Doctor Info -->
@@ -331,6 +370,15 @@ import { PatientPickerComponent } from '../../shared/components/patient-picker.c
               <label class="form-label">Encounter ID</label>
               <input class="form-control" formControlName="encounterId" placeholder="Optional" />
             </div>
+            <div class="form-group span-2">
+              <label class="form-label">Referral Partner / Organization</label>
+              <select class="form-control" formControlName="organizationId" (change)="onOrganizationChange()">
+                <option [value]="null">None (Retail Patient)</option>
+                @for (org of organizations(); track org.id) {
+                  <option [value]="org.id">{{ org.name }}</option>
+                }
+              </select>
+            </div>
           </div>
         </form>
       </div>
@@ -344,38 +392,28 @@ import { PatientPickerComponent } from '../../shared/components/patient-picker.c
         } @else if (availableTests().length === 0) {
           <div class="empty-tests">No tests available. Add tests in Test Master first.</div>
         } @else {
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th style="width:40px"></th>
-                  <th>Test Name</th>
-                  <th>Code</th>
-                  <th>Category</th>
-                  <th>Normal Range</th>
-                  <th>Price</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (test of availableTests(); track test.id) {
-                  <tr [class.selected]="isSelected(test.id)" (click)="toggleTest(test)">
-                    <td>
-                      <input
-                        type="checkbox"
-                        [checked]="isSelected(test.id)"
-                        (change)="toggleTest(test)"
-                        (click)="$event.stopPropagation()"
-                      />
-                    </td>
-                    <td>{{ test.name }}</td>
-                    <td>{{ test.code }}</td>
-                    <td>{{ test.category }}</td>
-                    <td>{{ test.normalRange || '—' }}</td>
-                    <td>₹{{ test.price ?? 0 }}</td>
-                  </tr>
+          <div class="search-container">
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Search tests by name, code, or test ID..."
+              [ngModel]="testSearchTerm()"
+              (ngModelChange)="testSearchTerm.set($event)"
+              [ngModelOptions]="{ standalone: true }"
+            />
+            @if (filteredTests().length > 0) {
+              <div class="search-dropdown">
+                @for (test of filteredTests(); track test.id) {
+                  <button type="button" class="dropdown-item" (click)="addTest(test)">
+                    <span>
+                      <strong>{{ test.name }}</strong>
+                      <span style="color:var(--clr-neutral-500); margin-left:8px;">ID: {{ test.numericId || '—' }} | {{ test.code || 'No Code' }}</span>
+                    </span>
+                    <span style="font-weight:var(--fw-semibold); color:var(--clr-primary-700)">₹{{ getPriceForTest(test) }}</span>
+                  </button>
                 }
-              </tbody>
-            </table>
+              </div>
+            }
           </div>
 
           <!-- Selected tests summary -->
@@ -385,21 +423,81 @@ import { PatientPickerComponent } from '../../shared/components/patient-picker.c
               <p
                 style="font-family:var(--font-body);font-size:var(--text-sm);color:var(--clr-neutral-400);margin:0 0 var(--sp-3)"
               >
-                No tests selected yet.
+                No tests selected yet. Search and select tests above.
               </p>
             } @else {
-              <div class="summary-chips">
-                @for (t of selectedTests(); track t.id) {
-                  <span class="chip">
-                    {{ t.name }} — ₹{{ t.price ?? 0 }}
-                    <button class="chip-remove" (click)="removeTest(t.id)" title="Remove">×</button>
-                  </span>
-                }
+              <div class="table-wrap" style="margin-bottom:var(--sp-4);">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Test ID</th>
+                      <th>Test Name</th>
+                      <th>Code</th>
+                      <th>Price</th>
+                      <th style="width:40px; text-align:right"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (t of selectedTests(); track t.id) {
+                      <tr>
+                        <td>{{ t.numericId || '—' }}</td>
+                        <td>{{ t.name }}</td>
+                        <td>{{ t.code }}</td>
+                        <td>₹{{ getPriceForTest(t) }}</td>
+                        <td style="text-align:right">
+                          <button type="button" class="chip-remove" (click)="removeTest(t.id)" title="Remove" style="font-size:18px;">×</button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
               </div>
             }
-            <div class="total-row">
-              <span class="total-label">Total Amount:</span>
-              <span class="total-amount">₹{{ totalAmount() }}</span>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-top:var(--sp-4);">
+              <div class="concession-box" style="display:flex; gap:var(--sp-4); align-items:flex-end;">
+                <div class="form-group">
+                  <label class="form-label">General Concession (%)</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    style="width: 100px;"
+                    [ngModel]="concessionPercentage()"
+                    (ngModelChange)="concessionPercentage.set($event || 0)"
+                    [ngModelOptions]="{ standalone: true }"
+                    min="0"
+                    max="100"
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Reason for Concession</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    style="width: 250px;"
+                    placeholder="e.g. Staff Discount"
+                    [ngModel]="concessionReason()"
+                    (ngModelChange)="concessionReason.set($event)"
+                    [ngModelOptions]="{ standalone: true }"
+                  />
+                </div>
+              </div>
+
+              <div class="totals-block" style="text-align:right;">
+                <div class="total-row" style="margin-bottom:var(--sp-1);">
+                  <span class="total-label">Subtotal:</span>
+                  <span class="total-amount" style="font-size:var(--text-lg); color:var(--clr-neutral-800)">₹{{ subtotal().toFixed(2) }}</span>
+                </div>
+                @if (concessionAmount() > 0) {
+                  <div class="total-row" style="margin-bottom:var(--sp-1); color:var(--clr-danger-600);">
+                    <span class="total-label" style="color:var(--clr-danger-600);">Discount ({{ concessionPercentage() }}%):</span>
+                    <span class="total-amount" style="font-size:var(--text-lg); color:var(--clr-danger-600)">- ₹{{ concessionAmount().toFixed(2) }}</span>
+                  </div>
+                }
+                <div class="total-row" style="border-top:1px solid var(--border-default); padding-top:var(--sp-2); margin-top:var(--sp-2);">
+                  <span class="total-label">Total Amount:</span>
+                  <span class="total-amount">₹{{ totalAmount().toFixed(2) }}</span>
+                </div>
+              </div>
             </div>
           </div>
         }
@@ -442,6 +540,7 @@ import { PatientPickerComponent } from '../../shared/components/patient-picker.c
 })
 export class LabOrderFormPage implements OnInit {
   private labApi = inject(LabApiService);
+  private orgApi = inject(OrganizationApiService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private fb = inject(FormBuilder);
@@ -449,11 +548,33 @@ export class LabOrderFormPage implements OnInit {
   isEdit = signal(false);
   orderId = signal<string | null>(null);
 
+  organizations = signal<any[]>([]);
+  orgRates = signal<Map<string, number>>(new Map());
+
   availableTests = signal<any[]>([]);
   testsLoading = signal(false);
 
+  testSearchTerm = signal('');
+  filteredTests = computed(() => {
+    const term = this.testSearchTerm().toLowerCase().trim();
+    if (!term) return [];
+    return this.availableTests()
+      .filter(t => 
+        t.name.toLowerCase().includes(term) || 
+        (t.code && t.code.toLowerCase().includes(term)) ||
+        (t.numericId && t.numericId.toString().includes(term))
+      )
+      .slice(0, 10);
+  });
+
   selectedTests = signal<any[]>([]);
-  totalAmount = computed(() => this.selectedTests().reduce((sum, t) => sum + (t.price ?? 0), 0));
+  
+  concessionPercentage = signal(0);
+  concessionReason = signal('');
+
+  subtotal = computed(() => this.selectedTests().reduce((sum, t) => sum + this.getPriceForTest(t), 0));
+  concessionAmount = computed(() => (this.subtotal() * (this.concessionPercentage() || 0)) / 100);
+  totalAmount = computed(() => this.subtotal() - this.concessionAmount());
 
   submitting = signal(false);
 
@@ -462,6 +583,7 @@ export class LabOrderFormPage implements OnInit {
     orderedByDoctorId: [''],
     orderedByDoctorName: [''],
     encounterId: [''],
+    organizationId: [null],
   });
 
   sampleForm: FormGroup = this.fb.group({
@@ -482,12 +604,42 @@ export class LabOrderFormPage implements OnInit {
         this.orderForm.patchValue({ patientId });
       }
     }
+    this.loadOrganizations();
     this.loadTests();
+  }
+
+  loadOrganizations(): void {
+    this.orgApi.list().subscribe(res => {
+      this.organizations.set(res || []);
+    });
+  }
+
+  onOrganizationChange(): void {
+    const orgId = this.orderForm.value.organizationId;
+    if (!orgId || orgId === 'null') {
+      this.orgRates.set(new Map());
+      return;
+    }
+    this.orgApi.getRates(orgId).subscribe(rates => {
+      const map = new Map<string, number>();
+      (rates || []).forEach((r: any) => {
+        map.set(r.testId, Number(r.customPrice));
+      });
+      this.orgRates.set(map);
+    });
+  }
+
+  getPriceForTest(test: any): number {
+    const rates = this.orgRates();
+    if (rates.has(test.id)) {
+      return rates.get(test.id)!;
+    }
+    return Number(test.price ?? 0);
   }
 
   loadTests(): void {
     this.testsLoading.set(true);
-    this.labApi.listTests().subscribe({
+    this.labApi.listTests({ limit: 1500 }).subscribe({
       next: (res) => {
         this.availableTests.set(res.data ?? []);
         this.testsLoading.set(false);
@@ -523,6 +675,13 @@ export class LabOrderFormPage implements OnInit {
     return this.selectedTests().some((t) => t.id === testId);
   }
 
+  addTest(test: any): void {
+    if (!this.isSelected(test.id)) {
+      this.selectedTests.update((list) => [...list, test]);
+    }
+    this.testSearchTerm.set('');
+  }
+
   toggleTest(test: any): void {
     if (this.isSelected(test.id)) {
       this.selectedTests.update((list) => list.filter((t) => t.id !== test.id));
@@ -543,13 +702,31 @@ export class LabOrderFormPage implements OnInit {
   submit(): void {
     if (this.orderForm.invalid) {
       this.orderForm.markAllAsTouched();
+      alert('Please select a Patient before creating the order.');
+      window.scrollTo(0, 0);
       return;
     }
+    
+    if (this.selectedTests().length === 0) {
+      alert('Please select at least one test.');
+      return;
+    }
+    
     this.submitting.set(true);
 
     const payload = {
       ...this.orderForm.value,
-      tests: this.selectedTests().map((t) => t.id),
+      orderedByDoctorId: this.orderForm.value.orderedByDoctorId || 'WALK-IN',
+      orderedByDoctorName: this.orderForm.value.orderedByDoctorName || 'Self / Walk-in',
+      organizationId: this.orderForm.value.organizationId || null,
+      concessionPercentage: this.concessionPercentage(),
+      concessionReason: this.concessionReason(),
+      tests: this.selectedTests().map((t) => ({
+        testId: t.id,
+        testName: t.name || t.testName,
+        price: this.getPriceForTest(t),
+      })),
+      paymentMethod: (this.orderForm.value.organizationId && this.orderForm.value.organizationId !== 'null') ? 'CREDIT' : 'CASH',
       totalAmount: this.totalAmount(),
       ...(this.isEdit() ? this.sampleForm.value : {}),
     };
@@ -559,12 +736,17 @@ export class LabOrderFormPage implements OnInit {
       : this.labApi.createOrder(payload);
 
     req.subscribe({
-      next: () => {
+      next: (res: any) => {
         this.submitting.set(false);
-        this.router.navigate(['/laboratory']);
+        if (res && res.id) {
+          this.router.navigate(['/laboratory/receipt', res.id]);
+        } else {
+          this.router.navigate(['/laboratory']);
+        }
       },
-      error: () => {
+      error: (err) => {
         this.submitting.set(false);
+        alert('Failed to create order. Error: ' + (err?.error?.message || err.message || 'Unknown error'));
       },
     });
   }

@@ -1,7 +1,7 @@
 import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 
 export interface Doctor {
   id: string;
@@ -99,103 +99,7 @@ const DOCTOR_CATALOG: Doctor[] = [
   },
 ];
 
-const INITIAL_APPOINTMENTS: Appointment[] = [
-  {
-    id: 'APT-2026-00101',
-    tokenNo: 1,
-    patientId: 'UHID-2026-00012',
-    patientName: 'Ramesh Kumar',
-    age: 48,
-    gender: 'Male',
-    mobileNumber: '9876543210',
-    email: 'ramesh.kumar@gmail.com',
-    address: 'Flat 302, Green Valley Apartments, Hyderabad',
-    bloodGroup: 'B+',
-    date: new Date().toISOString().split('T')[0],
-    time: '09:30 AM',
-    type: 'Follow-up',
-    department: 'General Medicine',
-    reason: 'Monthly blood sugar & BP checkup',
-    priority: 'Normal',
-    status: 'Arrived',
-    paymentStatus: 'Paid',
-    doctorId: 'DOC-101',
-    doctorName: 'Dr. Krishna P Padagala',
-    doctorSpecialization: 'MD, General Medicine & Diabetology',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'APT-2026-00102',
-    tokenNo: 2,
-    patientId: 'UHID-2026-00018',
-    patientName: 'Sneha Patel',
-    age: 32,
-    gender: 'Female',
-    mobileNumber: '9823456789',
-    email: 'sneha.patel@yahoo.com',
-    address: 'Plot 45, Banjara Hills Road No. 12',
-    bloodGroup: 'O+',
-    date: new Date().toISOString().split('T')[0],
-    time: '10:15 AM',
-    type: 'New',
-    department: 'Cardiology',
-    reason: 'Occasional chest tightness and palpitations',
-    priority: 'Urgent',
-    status: 'In-Consultation',
-    paymentStatus: 'Paid',
-    doctorId: 'DOC-102',
-    doctorName: 'Dr. Arun Sharma',
-    doctorSpecialization: 'DM, Interventional Cardiology',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'APT-2026-00103',
-    tokenNo: 3,
-    patientId: 'UHID-2026-00025',
-    patientName: 'Vijay Deshmukh',
-    age: 61,
-    gender: 'Male',
-    mobileNumber: '9765432190',
-    address: 'Sector 4, KPHB Colony',
-    bloodGroup: 'A+',
-    date: new Date().toISOString().split('T')[0],
-    time: '11:00 AM',
-    type: 'New',
-    department: 'Orthopedics',
-    reason: 'Severe right knee pain after walking',
-    priority: 'Normal',
-    status: 'Confirmed',
-    paymentStatus: 'Pending',
-    doctorId: 'DOC-103',
-    doctorName: 'Dr. Priya Verma',
-    doctorSpecialization: 'MS, Orthopedics & Joint Replacement',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'APT-2026-00104',
-    tokenNo: 4,
-    patientId: 'UHID-2026-00031',
-    patientName: 'Master Aarav Reddy',
-    age: 7,
-    gender: 'Male',
-    mobileNumber: '9988776655',
-    email: 'reddy.family@gmail.com',
-    address: 'H.No 12-4, Madhapur',
-    bloodGroup: 'AB+',
-    date: new Date().toISOString().split('T')[0],
-    time: '11:30 AM',
-    type: 'New',
-    department: 'Pediatrics',
-    reason: 'High grade fever and cough since 3 days',
-    priority: 'Emergency',
-    status: 'Arrived',
-    paymentStatus: 'Paid',
-    doctorId: 'DOC-104',
-    doctorName: 'Dr. Rajesh Gupta',
-    doctorSpecialization: 'MD, Pediatrics & Child Health',
-    createdAt: new Date().toISOString(),
-  },
-];
+const INITIAL_APPOINTMENTS: Appointment[] = [];
 
 @Component({
   selector: 'hms-appointment-list',
@@ -2099,6 +2003,9 @@ const INITIAL_APPOINTMENTS: Appointment[] = [
   `,
 })
 export class AppointmentListPage implements OnInit {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+
   doctors = DOCTOR_CATALOG;
   appointments = signal<Appointment[]>(INITIAL_APPOINTMENTS);
 
@@ -2279,18 +2186,53 @@ export class AppointmentListPage implements OnInit {
     const saved = localStorage.getItem('hms_appointments');
     if (saved) {
       try {
-        this.appointments.set(JSON.parse(saved));
+        let parsed = JSON.parse(saved);
+        // Remove dummy appointments (any APT ID < 105)
+        parsed = parsed.filter((a: any) => {
+          if (!a.id) return true;
+          const match = a.id.match(/APT-\d{4}-(\d+)/);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            return num >= 105;
+          }
+          return true;
+        });
+        this.appointments.set(parsed);
+        localStorage.setItem('hms_appointments', JSON.stringify(parsed));
       } catch {
         // use default
       }
     }
+
+    this.route.queryParams.subscribe(params => {
+      if (params['action'] === 'new' || params['uhid']) {
+        this.activeTab.set('form');
+        const uhid = params['uhid'];
+        if (uhid) {
+          this.patientType.set('existing');
+          this.existingUhidSearch.set(uhid);
+          
+          const pat = this.existingPatientsList().find(p => p.uhid === uhid);
+          if (pat) {
+            this.onSelectExistingPatient(uhid);
+          } else {
+            // Patient not in local known list yet, just populate the form manually
+            this.selectedExistingUhid.set(uhid);
+            this.formPatientId.set(uhid);
+            this.formPatientName = params['patientName'] || '';
+          }
+        } else {
+          this.openAddForm();
+        }
+      }
+    });
   }
 
   // ── Counters ──
-  totalCount = computed(() => this.appointments().length);
-  waitingCount = computed(() => this.appointments().filter((a) => a.status === 'Arrived').length);
-  inProgressCount = computed(() => this.appointments().filter((a) => a.status === 'In-Consultation').length);
-  completedCount = computed(() => this.appointments().filter((a) => a.status === 'Completed').length);
+  totalCount = computed(() => this.filteredAppointments().length);
+  waitingCount = computed(() => this.filteredAppointments().filter((a) => a.status === 'Arrived').length);
+  inProgressCount = computed(() => this.filteredAppointments().filter((a) => a.status === 'In-Consultation').length);
+  completedCount = computed(() => this.filteredAppointments().filter((a) => a.status === 'Completed').length);
 
   // ── Filtered List ──
   filteredAppointments = computed(() => {

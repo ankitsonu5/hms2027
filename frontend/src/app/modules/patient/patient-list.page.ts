@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { PatientApiService } from '../../core/services/patient-api.service';
 
 @Component({
@@ -10,6 +10,105 @@ import { PatientApiService } from '../../core/services/patient-api.service';
   imports: [CommonModule, ReactiveFormsModule, RouterModule],
   styles: [
     `
+      /* Modal Styles */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        animation: fadeIn 0.15s ease-out;
+      }
+      .modal-content {
+        background: #fff;
+        border-radius: var(--radius-xl);
+        width: 100%;
+        max-width: 600px;
+        box-shadow: var(--shadow-lg);
+        overflow: hidden;
+        animation: slideUp 0.2s ease-out;
+      }
+      .modal-header {
+        padding: var(--sp-4) var(--sp-6);
+        border-bottom: 1px solid var(--border-default);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .modal-patient-info {
+        display: flex;
+        flex-direction: column;
+      }
+      .modal-patient-name {
+        font-family: var(--font-label);
+        font-weight: var(--fw-bold);
+        font-size: var(--text-base);
+        color: var(--clr-neutral-900);
+      }
+      .modal-patient-meta {
+        font-size: var(--text-xs);
+        color: var(--clr-neutral-500);
+        text-transform: uppercase;
+        margin-top: 2px;
+      }
+      .modal-close {
+        background: transparent;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-md);
+        padding: var(--sp-1) var(--sp-3);
+        font-size: var(--text-xs);
+        font-weight: var(--fw-medium);
+        cursor: pointer;
+        color: var(--clr-neutral-600);
+      }
+      .modal-close:hover {
+        background: var(--bg-muted);
+      }
+      .modal-body {
+        padding: var(--sp-6);
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: var(--sp-4);
+        background: var(--bg-muted);
+      }
+      .service {
+        background: #fff;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-md);
+        padding: var(--sp-4);
+        text-align: left;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-1);
+        transition: var(--transition-base);
+      }
+      .service:hover {
+        border-color: var(--clr-primary-400);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+        transform: translateY(-2px);
+      }
+      .service b {
+        font-family: var(--font-label);
+        font-size: var(--text-sm);
+        color: var(--clr-neutral-900);
+      }
+      .service span {
+        font-size: var(--text-xs);
+        color: var(--clr-neutral-500);
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes slideUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
       .page {
         display: flex;
         flex-direction: column;
@@ -248,6 +347,35 @@ import { PatientApiService } from '../../core/services/patient-api.service';
   ],
   template: `
     <div class="page">
+      <!-- Service Modal -->
+      @if (selectedForBill()) {
+        <div class="modal-overlay" (click)="closeBillModal()">
+          <div class="modal-content" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+              <div class="modal-patient-info">
+                <span class="modal-patient-name">{{ selectedForBill()?.firstName }} {{ selectedForBill()?.lastName }}</span>
+                <span class="modal-patient-meta">{{ selectedForBill()?.uhid }} · {{ selectedForBill()?.gender }} · {{ selectedForBill()?.phone }}</span>
+              </div>
+              <button class="modal-close" (click)="closeBillModal()">Close</button>
+            </div>
+            <div class="modal-body">
+              <button type="button" class="service" (click)="goService('appt', selectedForBill())">
+                <b>Book Appointment</b>
+                <span>Doctor consultation</span>
+              </button>
+              <button type="button" class="service" (click)="goService('lab', selectedForBill())">
+                <b>Lab Test</b>
+                <span>Order tests & billing</span>
+              </button>
+              <button type="button" class="service" (click)="goService('pharmacy', selectedForBill())">
+                <b>Pharmacy</b>
+                <span>Dispense & billing</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
       <div class="page-header">
         <h1 class="page-title">Patient Registration</h1>
         <a class="btn btn-primary" [routerLink]="['new']">+ New Patient</a>
@@ -310,6 +438,7 @@ import { PatientApiService } from '../../core/services/patient-api.service';
                           [queryParams]="{ patientId: p.id }"
                           >Start OPD</a
                         >
+                        <button class="btn btn-primary btn-sm" style="background: var(--clr-success-600)" (click)="openBillModal(p)">Bill</button>
                         <a class="btn btn-secondary btn-sm" [routerLink]="[p.id, 'edit']">Edit</a>
                         <button class="btn btn-danger btn-sm" (click)="onDelete(p.id)">
                           Delete
@@ -352,9 +481,11 @@ import { PatientApiService } from '../../core/services/patient-api.service';
 export class PatientListPage implements OnInit {
   private svc = inject(PatientApiService);
   private fb = inject(FormBuilder);
+  private router = inject(Router);
 
   patients = signal<any[]>([]);
   total = signal(0);
+  selectedForBill = signal<any | null>(null);
   page = signal(1);
   limit = 20;
   loading = signal(false);
@@ -410,5 +541,23 @@ export class PatientListPage implements OnInit {
 
   min(a: number, b: number): number {
     return Math.min(a, b);
+  }
+
+  openBillModal(patient: any) {
+    this.selectedForBill.set(patient);
+  }
+
+  closeBillModal() {
+    this.selectedForBill.set(null);
+  }
+
+  goService(serviceKey: string, p: any): void {
+    if (serviceKey === 'lab') {
+      this.router.navigate(['/laboratory/order/new'], { queryParams: { patientId: p.id, uhid: p.uhid } });
+    } else if (serviceKey === 'pharmacy') {
+      this.router.navigate(['/pharmacy/dispense'], { queryParams: { patientId: p.id, uhid: p.uhid } });
+    } else {
+      this.router.navigate(['/registration/appointments/list'], { queryParams: { action: 'new', patientId: p.id, uhid: p.uhid, patientName: p.firstName + ' ' + p.lastName } });
+    }
   }
 }

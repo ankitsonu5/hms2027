@@ -46,4 +46,44 @@ export class CreateLabTestDto {
   @IsBoolean()
   @IsOptional()
   isNotifiable?: boolean;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  testType?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  sampleType?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  integrationCode?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  procedureCode?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  loincCode?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  shortText?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  testAlias?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  icdToPin?: string;
 }

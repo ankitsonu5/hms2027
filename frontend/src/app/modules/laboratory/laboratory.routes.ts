@@ -14,6 +14,10 @@ export const LABORATORY_ROUTES: Routes = [
     loadComponent: () => import('./lab-order-form.page').then((m) => m.LabOrderFormPage),
   },
   {
+    path: 'receipt/:orderId',
+    loadComponent: () => import('./bill-receipt.page').then((m) => m.BillReceiptPage),
+  },
+  {
     path: 'results/:orderId',
     loadComponent: () => import('./lab-result-entry.page').then((m) => m.LabResultPage),
   },
