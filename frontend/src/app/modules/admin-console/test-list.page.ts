@@ -91,10 +91,99 @@ import { LabApiService } from '../../core/services/lab-api.service';
         color: var(--clr-primary-700);
         border-bottom: 2px solid var(--clr-primary-600);
       }
+      .search-filter-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--sp-4);
+        margin: var(--sp-3) 0;
+        flex-wrap: wrap;
+      }
+      .search-box {
+        position: relative;
+        flex: 1;
+        max-width: 460px;
+        min-width: 260px;
+        display: flex;
+        align-items: center;
+      }
+      .search-box svg {
+        position: absolute;
+        left: 12px;
+        color: #94a3b8;
+        pointer-events: none;
+      }
+      .search-box input {
+        width: 100%;
+        padding: 9px 34px 9px 36px;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-sm);
+        font-size: var(--text-sm);
+        background: #ffffff;
+        color: var(--clr-neutral-800);
+        outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+      .search-box input:focus {
+        border-color: var(--clr-primary-600);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      }
+      .clear-btn {
+        position: absolute;
+        right: 10px;
+        background: #e2e8f0;
+        border: none;
+        border-radius: 50%;
+        width: 18px;
+        height: 18px;
+        font-size: 11px;
+        line-height: 1;
+        color: #64748b;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+      }
+      .clear-btn:hover {
+        background: #cbd5e1;
+        color: #1e293b;
+      }
+      .empty-search-state {
+        padding: 48px 24px;
+        text-align: center;
+        background: #ffffff;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-sm);
+        margin-top: 12px;
+      }
+      .empty-search-state h3 {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1e293b;
+        margin: 0 0 6px 0;
+      }
+      .empty-search-state p {
+        font-size: 13px;
+        color: #64748b;
+        margin: 0 0 16px 0;
+      }
+      .btn-clear-search {
+        background: var(--clr-primary-600);
+        color: #ffffff;
+        border: none;
+        padding: 6px 14px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      .btn-clear-search:hover {
+        background: #1d4ed8;
+      }
       .row-count {
         font-size: var(--text-sm);
         font-weight: var(--fw-bold);
-        margin-bottom: var(--sp-3);
         color: var(--clr-neutral-800);
       }
       .table-card {
@@ -326,11 +415,37 @@ import { LabApiService } from '../../core/services/lab-api.service';
         <div class="tab" [class.active]="activeMainTab() === 'BILL_ONLY'" (click)="activeMainTab.set('BILL_ONLY')">Bill Only Test</div>
       </div>
 
+      <!-- Search Toolbar -->
+      <div class="search-filter-bar">
+        <div class="search-box">
+          <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+          </svg>
+          <input
+            type="text"
+            [value]="searchQuery()"
+            (input)="onSearchInput($event)"
+            placeholder="Search by test name, test code, department..."
+          />
+          @if (searchQuery()) {
+            <button type="button" class="clear-btn" (click)="clearSearch()" title="Clear search">✕</button>
+          }
+        </div>
+        <div class="row-count">Rows: {{ filteredTests().length }}</div>
+      </div>
+
       @if (loading()) {
         <div class="loading">Loading tests...</div>
+      } @else if (filteredTests().length === 0) {
+        <div class="empty-search-state">
+          <div style="font-size: 28px; margin-bottom: 8px;">🔍</div>
+          <h3>No tests found</h3>
+          <p>No tests match "{{ searchQuery() }}" in {{ activeMainTab() === 'TEST' ? 'Tests' : activeMainTab() === 'PROFILE' ? 'Profile Tests' : 'Bill Only Tests' }}.</p>
+          @if (searchQuery()) {
+            <button type="button" class="btn-clear-search" (click)="clearSearch()">Clear Search</button>
+          }
+        </div>
       } @else {
-        <div class="row-count">Rows: {{ filteredTests().length }}</div>
-
         <div class="table-card">
           <table>
             <thead>
@@ -538,9 +653,37 @@ export class TestListPage implements OnInit {
     icdToPin: ['']
   });
 
+  searchQuery = signal('');
+
   filteredTests = computed(() => {
-    return this.tests().filter(t => (t.testType || 'TEST') === this.activeMainTab());
+    const q = this.searchQuery().toLowerCase().trim();
+    return this.tests().filter(t => {
+      const matchType = (t.testType || 'TEST') === this.activeMainTab();
+      if (!matchType) return false;
+      if (!q) return true;
+      const name = (t.name || '').toLowerCase();
+      const code = (t.code || t.testCode || '').toLowerCase();
+      const cat = (t.category || '').toLowerCase();
+      const sample = (t.sampleType || '').toLowerCase();
+      const alias = (t.testAlias || '').toLowerCase();
+      return (
+        name.includes(q) ||
+        code.includes(q) ||
+        cat.includes(q) ||
+        sample.includes(q) ||
+        alias.includes(q)
+      );
+    });
   });
+
+  onSearchInput(event: Event) {
+    const val = (event.target as HTMLInputElement).value;
+    this.searchQuery.set(val);
+  }
+
+  clearSearch() {
+    this.searchQuery.set('');
+  }
 
   groupedFiltered = computed(() => {
     const list = this.filteredTests();
@@ -669,22 +812,71 @@ export class TestListPage implements OnInit {
     }
     
     this.saving.set(true);
-    const payload = {
-      ...this.testForm.value,
-      testType: this.addingType()
-    };
+    const formVal = this.testForm.value;
 
-    this.labApi.createTest(payload).subscribe({
+    const priceNum = formVal.price !== null && formVal.price !== '' && !isNaN(Number(formVal.price))
+      ? Number(formVal.price)
+      : 0;
+
+    const fullPayload: Record<string, any> = {
+      name: (formVal.name || '').trim(),
+      code: (formVal.code || '').trim() || undefined,
+      category: formVal.category || 'Pathology',
+      price: priceNum,
+      testType: this.addingType() || 'TEST',
+      sampleType: formVal.sampleType || undefined,
+      integrationCode: formVal.integrationCode || undefined,
+      procedureCode: formVal.procedureCode || undefined,
+      loincCode: formVal.loincCode || undefined,
+      shortText: formVal.shortText || undefined,
+      testAlias: formVal.testAlias || undefined,
+      icdToPin: formVal.icdToPin || undefined,
+    };
+    Object.keys(fullPayload).forEach((k) => fullPayload[k] === undefined && delete fullPayload[k]);
+
+    // Fallback payload with base fields in case backend has older DTO
+    const basePayload: Record<string, any> = {
+      name: fullPayload['name'],
+      code: fullPayload['code'],
+      category: fullPayload['category'],
+      price: fullPayload['price'],
+    };
+    Object.keys(basePayload).forEach((k) => basePayload[k] === undefined && delete basePayload[k]);
+
+    this.labApi.createTest(fullPayload).subscribe({
       next: () => {
         this.saving.set(false);
         this.closeModal();
         this.loadTests(); // Refresh the list
       },
       error: (err) => {
-        console.error(err);
-        this.saving.set(false);
-        alert('Failed to save. Please try again.');
+        const errorMsg = JSON.stringify(err?.error?.message || err?.message || '');
+        // If the server rejected because optional fields do not exist on older VPS DTO, retry with base payload
+        if (err?.status === 400 && errorMsg.includes('should not exist')) {
+          console.warn('Backend rejected newer DTO fields, retrying with core fields fallback...', basePayload);
+          this.labApi.createTest(basePayload).subscribe({
+            next: () => {
+              this.saving.set(false);
+              this.closeModal();
+              this.loadTests();
+            },
+            error: (fallbackErr) => {
+              this.handleSaveError(fallbackErr);
+            }
+          });
+          return;
+        }
+
+        this.handleSaveError(err);
       }
     });
+  }
+
+  private handleSaveError(err: any) {
+    console.error('Failed to save lab test:', err);
+    this.saving.set(false);
+    const rawMsg = err?.error?.message || err?.message;
+    const msg = Array.isArray(rawMsg) ? rawMsg.join('\n') : (rawMsg || 'Failed to save. Please verify the form and try again.');
+    alert(`Failed to save: ${msg}`);
   }
 }
