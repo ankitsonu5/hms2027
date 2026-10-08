@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsIn,
   IsObject,
+  IsArray,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -70,4 +71,36 @@ export class CreateEmergencyDto {
     rr?: number;
     weight?: number;
   };
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  treatmentNotes?: string;
+
+  @ApiPropertyOptional({ description: 'List of drugs administered' })
+  @IsOptional()
+  @IsArray()
+  drugsAdministered?: object[];
+
+  @ApiPropertyOptional({
+    enum: ['DISCHARGE', 'ADMIT_ICU', 'ADMIT_OBSERVATION', 'ADMIT_WARD'],
+  })
+  @IsOptional()
+  @IsIn(['DISCHARGE', 'ADMIT_ICU', 'ADMIT_OBSERVATION', 'ADMIT_WARD'])
+  disposition?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  attendedByDoctorId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  attendedByDoctorName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  admissionId?: string;
 }

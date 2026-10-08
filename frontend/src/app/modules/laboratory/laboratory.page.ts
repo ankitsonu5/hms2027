@@ -3,6 +3,9 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { LabApiService } from '../../core/services/lab-api.service';
+import { PatientApiService } from '../../core/services/patient-api.service';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
 @Component({
   selector: 'hms-laboratory',
@@ -319,7 +322,7 @@ import { LabApiService } from '../../core/services/lab-api.service';
             <table>
               <thead>
                 <tr>
-                  <th>Patient ID</th>
+                  <th>Patient UHID</th>
                   <th>Doctor</th>
                   <th>Tests</th>
                   <th>Status</th>
@@ -341,7 +344,7 @@ import { LabApiService } from '../../core/services/lab-api.service';
                 } @else {
                   @for (order of orders(); track order.id) {
                     <tr>
-                      <td>{{ order.patientId }}</td>
+                      <td>{{ order.patientUhid || order.patientId }}</td>
                       <td>{{ order.orderedByDoctorName || order.orderedByDoctorId || '—' }}</td>
                       <td>{{ order.tests?.length ?? 0 }}</td>
                       <td>
@@ -380,6 +383,7 @@ import { LabApiService } from '../../core/services/lab-api.service';
 })
 export class LaboratoryPage implements OnInit {
   private labApi = inject(LabApiService);
+  private patientApi = inject(PatientApiService);
   private router = inject(Router);
   private fb = inject(FormBuilder);
 
@@ -397,8 +401,28 @@ export class LaboratoryPage implements OnInit {
     if (this.orderStatusFilter()) params['status'] = this.orderStatusFilter();
     this.labApi.listOrders(params).subscribe({
       next: (res) => {
-        this.orders.set(res.data ?? []);
-        this.ordersLoading.set(false);
+        const data = res.data ?? [];
+        if (data.length === 0) {
+          this.orders.set([]);
+          this.ordersLoading.set(false);
+          return;
+        }
+
+        const reqs = data.map((order: any) =>
+          forkJoin({
+            order: of(order),
+            patient: this.patientApi.getOne(order.patientId).pipe(catchError(() => of(null)))
+          })
+        );
+
+        forkJoin(reqs).subscribe(results => {
+          const mappedOrders = results.map(r => ({
+            ...r.order,
+            patientUhid: r.patient ? r.patient.uhid : r.order.patientId
+          }));
+          this.orders.set(mappedOrders);
+          this.ordersLoading.set(false);
+        });
       },
       error: () => {
         this.orders.set([]);

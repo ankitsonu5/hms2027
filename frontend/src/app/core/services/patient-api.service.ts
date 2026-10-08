@@ -7,6 +7,9 @@ export class PatientApiService extends ApiService {
   list(q?: Record<string, any>): Observable<PagedRes<any>> {
     return this.get<PagedRes<any>>('patients', q);
   }
+  peekNextUhid(): Observable<{ uhid: string }> {
+    return this.get<{ uhid: string }>('patients/next-uhid');
+  }
   getOne(id: string | number): Observable<any> {
     return this.get<any>(`patients/${id}`);
   }

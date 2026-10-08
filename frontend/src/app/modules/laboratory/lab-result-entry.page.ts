@@ -1,8 +1,10 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, FormArray, FormGroup } from '@angular/forms';
 import { LabApiService } from '../../core/services/lab-api.service';
+import { PatientApiService } from '../../core/services/patient-api.service';
+import { forkJoin } from 'rxjs';
 
 @Component({
   selector: 'hms-lab-result-entry',
@@ -274,7 +276,7 @@ import { LabApiService } from '../../core/services/lab-api.service';
         <div>
           <h1 class="page-title">Enter Results</h1>
           @if (order()) {
-            <p class="page-subtitle">Order #{{ order().id }} — Patient {{ order().patientId }}</p>
+            <p class="page-subtitle">Order #{{ order().id }} — Patient {{ patient() ? (patient()?.firstName + ' ' + patient()?.lastName + ' (' + patient()?.uhid + ')') : order().patientId }}</p>
           }
         </div>
       </div>
@@ -293,7 +295,7 @@ import { LabApiService } from '../../core/services/lab-api.service';
         <div class="meta-card">
           <div class="meta-item">
             <span class="meta-label">Patient</span>
-            <span class="meta-value">{{ order().patientId }}</span>
+            <span class="meta-value">{{ patient() ? (patient()?.firstName + ' ' + patient()?.lastName + ' (' + patient()?.uhid + ')') : order().patientId }}</span>
           </div>
           <div class="meta-item">
             <span class="meta-label">Doctor</span>
@@ -339,9 +341,9 @@ import { LabApiService } from '../../core/services/lab-api.service';
                   @for (ctrl of resultsArray.controls; track $index) {
                     <tr [formGroupName]="$index">
                       <td>
-                        <strong>{{ getTestMeta($index, 'name') }}</strong>
+                        <strong>{{ getTestMeta($index, 'testName') || getTestMeta($index, 'name') }}</strong>
                       </td>
-                      <td>{{ getTestMeta($index, 'category') }}</td>
+                      <td>{{ getTestMeta($index, 'category') || '—' }}</td>
                       <td>{{ getTestMeta($index, 'unit') || '—' }}</td>
                       <td>{{ getTestMeta($index, 'normalRange') || '—' }}</td>
                       <td>
@@ -388,11 +390,14 @@ import { LabApiService } from '../../core/services/lab-api.service';
 })
 export class LabResultPage implements OnInit {
   private labApi = inject(LabApiService);
+  private patientApi = inject(PatientApiService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private fb = inject(FormBuilder);
+  private cd = inject(ChangeDetectorRef);
 
   order = signal<any>(null);
+  patient = signal<any>(null);
   loadingOrder = signal(false);
   loadError = signal(false);
 
@@ -400,7 +405,7 @@ export class LabResultPage implements OnInit {
   saved = signal(false);
 
   // Parallel array that holds test metadata for display (same index as resultsArray)
-  private testsMeta: any[] = [];
+  testsMeta = signal<any[]>([]);
 
   resultsForm: FormGroup = this.fb.group({
     results: this.fb.array([]),
@@ -426,6 +431,12 @@ export class LabResultPage implements OnInit {
         this.order.set(order);
         this.buildForm(order, orderId);
         this.loadingOrder.set(false);
+        
+        // Fetch patient details
+        this.patientApi.getOne(order.patientId).subscribe({
+          next: (pat) => this.patient.set(pat),
+          error: () => this.patient.set(null)
+        });
       },
       error: () => {
         this.loadError.set(true);
@@ -436,7 +447,24 @@ export class LabResultPage implements OnInit {
 
   buildForm(order: any, orderId: string): void {
     const tests: any[] = order.tests ?? [];
-    this.testsMeta = tests;
+    this.testsMeta.set(tests);
+
+    // Fetch full test details to display category, unit, normalRange
+    this.labApi.listTests({ limit: 1000 }).subscribe({
+      next: (res) => {
+        const fullTests = res.data || [];
+        const testMap: Record<string, any> = {};
+        fullTests.forEach((t: any) => testMap[t.id] = t);
+        
+        const enrichedTests = tests.map(t => {
+          const id = t.testId || t.id;
+          const full = testMap[id] || {};
+          return { ...full, ...t }; // let order test details override if needed, but grab full metadata
+        });
+        
+        this.testsMeta.set(enrichedTests);
+      }
+    });
 
     // Pre-load existing results if any
     this.labApi.getResults(orderId).subscribe({
@@ -450,34 +478,38 @@ export class LabResultPage implements OnInit {
 
         this.resultsArray.clear();
         tests.forEach((test) => {
-          const existing = resultMap[test.id] ?? {};
+          const id = test.testId || test.id;
+          const existing = resultMap[id] ?? {};
           this.resultsArray.push(
             this.fb.group({
-              testId: [test.id],
+              testId: [id],
               value: [existing.value ?? ''],
               isAbnormal: [existing.isAbnormal ?? false],
             }),
           );
         });
+        this.cd.detectChanges();
       },
       error: () => {
         // No existing results — build empty form rows
         this.resultsArray.clear();
         tests.forEach((test) => {
+          const id = test.testId || test.id;
           this.resultsArray.push(
             this.fb.group({
-              testId: [test.id],
+              testId: [id],
               value: [''],
               isAbnormal: [false],
             }),
           );
         });
+        this.cd.detectChanges();
       },
     });
   }
 
   getTestMeta(index: number, field: string): string {
-    return this.testsMeta[index]?.[field] ?? '';
+    return this.testsMeta()[index]?.[field] ?? '';
   }
 
   saveResults(): void {
@@ -485,14 +517,33 @@ export class LabResultPage implements OnInit {
     this.saved.set(false);
 
     const orderId = this.order()?.id;
-    const payload = { results: this.resultsForm.value.results };
+    const formResults = this.resultsForm.value.results;
 
-    this.labApi.saveResult(orderId, payload).subscribe({
+    const requests = formResults.map((res: any, index: number) => {
+      const testMeta = this.testsMeta()[index] || {};
+      const payload = {
+        orderId: orderId,
+        testId: res.testId,
+        testName: testMeta.testName || testMeta.name || 'Unknown Test',
+        value: res.value,
+        isAbnormal: res.isAbnormal,
+        unit: testMeta.unit,
+        normalRange: testMeta.normalRange
+      };
+      return this.labApi.saveResult(orderId, payload);
+    });
+
+    if (requests.length === 0) {
+      this.submitting.set(false);
+      return;
+    }
+
+    forkJoin(requests).subscribe({
       next: () => {
         this.submitting.set(false);
         this.saved.set(true);
-        // Scroll to top to show banner
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        // Automatically navigate back on success
+        setTimeout(() => this.goBack(), 500);
       },
       error: () => {
         this.submitting.set(false);

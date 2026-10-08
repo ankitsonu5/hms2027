@@ -555,7 +555,7 @@ export class PatientListPage implements OnInit {
     if (serviceKey === 'lab') {
       this.router.navigate(['/laboratory/order/new'], { queryParams: { patientId: p.id, uhid: p.uhid } });
     } else if (serviceKey === 'pharmacy') {
-      this.router.navigate(['/pharmacy/dispense'], { queryParams: { patientId: p.id, uhid: p.uhid } });
+      this.router.navigate(['/pharmacy/sale/new'], { queryParams: { patientId: p.id, uhid: p.uhid, patientName: p.firstName + ' ' + p.lastName } });
     } else {
       this.router.navigate(['/registration/appointments/list'], { queryParams: { action: 'new', patientId: p.id, uhid: p.uhid, patientName: p.firstName + ' ' + p.lastName } });
     }

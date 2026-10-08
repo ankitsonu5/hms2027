@@ -17,6 +17,11 @@ export class OrganizationController {
     return this.orgService.create(req.user.tenantId, data);
   }
 
+  @Get(':id')
+  findOne(@Request() req, @Param('id') id: string) {
+    return this.orgService.findOne(req.user.tenantId, id);
+  }
+
   @Get(':id/rates')
   getRates(@Request() req, @Param('id') id: string) {
     return this.orgService.getRates(req.user.tenantId, id);

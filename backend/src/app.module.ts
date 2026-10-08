@@ -13,6 +13,7 @@ import { BillingModule } from './modules/billing/billing.module';
 import { PharmacyModule } from './modules/pharmacy/pharmacy.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { OrganizationModule } from './modules/organization/organization.module';
+import { PhlebotomistModule } from './modules/phlebotomist/phlebotomist.module';
 
 @Module({
   imports: [
@@ -47,6 +48,8 @@ import { OrganizationModule } from './modules/organization/organization.module';
     BillingModule,
     PharmacyModule,
     ReportsModule,
+    OrganizationModule,
+    PhlebotomistModule,
 
     // ── Serve Angular build ────────────────────────────────────────────────────
     ServeStaticModule.forRoot({

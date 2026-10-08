@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -110,6 +111,16 @@ export class PharmacyController {
     @CurrentUser() user: { tenantId: string; id: string },
     @Body() dto: CreateSaleDto,
   ) {
+    console.log('Incoming createSale items:', JSON.stringify(dto.items, null, 2));
     return this.pharmacyService.createSale(user.tenantId, dto, user.id);
+  }
+
+  @Delete('sales/:id')
+  @ApiOperation({ summary: 'Delete a pharmacy sale' })
+  deleteSale(
+    @CurrentUser() user: { tenantId: string },
+    @Param('id') id: string,
+  ) {
+    return this.pharmacyService.deleteSale(user.tenantId, id);
   }
 }

@@ -70,6 +70,12 @@ export class LabTest {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ type: 'jsonb', nullable: true })
+  parameters: any;
+
+  @Column({ type: 'jsonb', nullable: true })
+  reportSettings: any;
+
   @CreateDateColumn()
   createdAt: Date;
 

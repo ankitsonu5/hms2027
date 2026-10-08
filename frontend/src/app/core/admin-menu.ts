@@ -53,7 +53,7 @@ export const ADMIN_MENU: AdminGroup[] = [
     icon: svg('<path d="M4 21V6l7-3v18M11 21V9l7 3v9M3 21h18"/>'),
   },
   {
-    label: 'Test and Profile Management',
+    label: 'Profile & Report Management',
     path: '/test-profile-management',
     icon: svg('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>'),
     children: [
@@ -222,7 +222,15 @@ export const REGISTRATION_MENU: AdminGroup[] = [
   },
   { label: 'Cash Transfer', path: '/registration/cash-transfer', icon: svg('<path d="M4 7h11a4 4 0 0 1 0 8H8"/><path d="M7 12l-3 3 3 3"/>') },
   { label: 'Archives', path: '/registration/archives', icon: svg('<rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4"/>') },
-  { label: 'Report Print', path: '/registration/report-print', icon: svg('<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/>') },
+  {
+    label: 'Report Print',
+    path: '/registration/report-print',
+    icon: svg('<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/>'),
+    children: [
+      { label: 'Pending Reports', path: 'pending' },
+      { label: 'All Reports', path: 'all' }
+    ]
+  },
   { label: 'Collection Reports', path: '/registration/collection-reports', icon: svg('<path d="M3 12h4l3 8 4-16 3 8h4"/>') },
   { label: 'Tests List', path: '/registration/tests-list', icon: svg('<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>') },
   { label: 'Operational Status', path: '/registration/operational-status', icon: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>') },

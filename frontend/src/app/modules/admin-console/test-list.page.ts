@@ -1,12 +1,12 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, ReactiveFormsModule, FormsModule, Validators } from '@angular/forms';
 import { LabApiService } from '../../core/services/lab-api.service';
 
 @Component({
   selector: 'hms-test-list',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule],
   styles: [
     `
       .page-container {
@@ -190,7 +190,7 @@ import { LabApiService } from '../../core/services/lab-api.service';
         background: #fff;
         border: 1px solid var(--border-default);
         border-radius: var(--radius-sm);
-        overflow: hidden;
+        overflow-x: auto;
       }
       .table-card table {
         width: 100%;
@@ -209,6 +209,7 @@ import { LabApiService } from '../../core/services/lab-api.service';
         padding: var(--sp-3) var(--sp-4);
         border-bottom: 1px solid var(--border-default);
         color: var(--clr-neutral-800);
+        white-space: nowrap;
       }
       .group-header {
         background: #fafafa;
@@ -375,6 +376,169 @@ import { LabApiService } from '../../core/services/lab-api.service';
         margin-top: -12px;
         margin-bottom: 8px;
       }
+      
+      /* Parameter Builder */
+      .parameters-builder {
+        display: flex;
+        height: 550px;
+        border: 1px solid var(--border-default);
+        margin-top: var(--sp-4);
+        background: #fff;
+        border-radius: var(--radius-sm);
+      }
+      .pb-sidebar {
+        width: 260px;
+        border-right: 1px solid var(--border-default);
+        background: #f8fafc;
+        display: flex;
+        flex-direction: column;
+      }
+      .pb-sidebar-header {
+        padding: var(--sp-3);
+        font-weight: var(--fw-bold);
+        border-bottom: 1px solid var(--border-default);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 14px;
+      }
+      .pb-item {
+        padding: var(--sp-3);
+        border-bottom: 1px solid var(--border-default);
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+      }
+      .pb-item.active {
+        background: #e2e8f0;
+        border-left: 3px solid var(--clr-primary-600);
+      }
+      .pb-content {
+        flex: 1;
+        padding: var(--sp-6);
+        overflow-y: auto;
+      }
+      .add-param-dropdown {
+        position: absolute;
+        top: 80px;
+        right: 24px;
+      }
+      .add-param-btn {
+        background: var(--clr-primary-600);
+        color: white;
+        border: none;
+        padding: var(--sp-2) var(--sp-4);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 14px;
+      }
+      .param-menu {
+        position: absolute;
+        right: 0;
+        top: 100%;
+        background: white;
+        border: 1px solid var(--border-default);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        z-index: 50;
+        min-width: 180px;
+        text-align: left;
+        border-radius: var(--radius-sm);
+        margin-top: 4px;
+      }
+      .param-menu-item {
+        padding: var(--sp-2) var(--sp-3);
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        font-size: 14px;
+        color: var(--clr-neutral-800);
+        position: relative;
+      }
+      .param-menu-item:hover {
+        background: #f1f5f9;
+        color: var(--clr-primary-600);
+      }
+      .sub-menu {
+        position: absolute;
+        right: 100%;
+        top: 0;
+        background: white;
+        border: 1px solid var(--border-default);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        min-width: 220px;
+        display: none;
+        border-radius: var(--radius-sm);
+      }
+      .param-menu-item:hover .sub-menu {
+        display: block;
+      }
+      .param-form-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: var(--sp-4);
+        font-weight: var(--fw-bold);
+        font-size: 14px;
+      }
+      .param-tabs {
+        display: flex;
+        gap: var(--sp-4);
+        border-bottom: 1px solid var(--border-default);
+        margin: var(--sp-4) 0;
+      }
+      .param-tab {
+        padding: var(--sp-2) 0;
+        cursor: pointer;
+        color: var(--clr-neutral-500);
+        font-size: 13px;
+        font-weight: 500;
+        margin-bottom: -1px;
+        border-bottom: 2px solid transparent;
+      }
+      .param-tab.active {
+        color: var(--clr-primary-600);
+        border-bottom: 2px solid var(--clr-primary-600);
+      }
+      .checkbox-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: var(--sp-3);
+        margin-top: var(--sp-4);
+      }
+      .checkbox-grid label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: #555;
+      }
+      .param-form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--sp-4);
+        margin-bottom: var(--sp-4);
+      }
+      .param-form-grid .full-width {
+        grid-column: 1 / -1;
+      }
+      .param-form-grid label {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 12px;
+        color: #555;
+      }
+      .form-control {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 13px;
+        outline: none;
+      }
+      .form-control:focus {
+        border-color: var(--clr-primary-600);
+      }
       @media print {
         .top-actions, .tabs {
           display: none !important;
@@ -452,23 +616,24 @@ import { LabApiService } from '../../core/services/lab-api.service';
               @if (activeMainTab() === 'PROFILE') {
                 <tr>
                   <th style="width: 40px"><input type="checkbox" /></th>
-                  <th>Profile Name</th>
-                  <th>Profile Code</th>
-                  <th>Price (₹)</th>
-                  <th>Outsourced</th>
-                  <th>Auto Approval</th>
+                  <th style="white-space: nowrap;">Profile Name <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12" style="color: #666; margin-left: 4px; vertical-align: middle;"><path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" /></svg></th>
+                  <th style="white-space: nowrap;">Profile Code <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12" style="color: #666; margin-left: 4px; vertical-align: middle;"><path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" /></svg></th>
+                  <th style="white-space: nowrap;">Price (₹) <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12" style="color: #666; margin-left: 4px; vertical-align: middle;"><path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" /></svg></th>
+                  <th style="white-space: nowrap;">Outsourced <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12" style="color: #666; margin-left: 4px; vertical-align: middle;"><path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" /></svg></th>
+                  <th style="white-space: nowrap;">Auto Approval <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12" style="color: #666; margin-left: 4px; vertical-align: middle;"><path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" /></svg></th>
                   <th style="width: 40px"></th>
                 </tr>
               } @else {
                 <tr>
                   <th style="width: 40px"><input type="checkbox" /></th>
-                  <th>Test Name</th>
-                  <th>Test Code</th>
-                  <th>Price (₹)</th>
-                  <th>Sample Type</th>
-                  <th>Department</th>
-                  <th>Outsourced</th>
-                  <th>Auto Approval</th>
+                  <th style="white-space: nowrap;">Test Name <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12" style="color: #666; margin-left: 4px; vertical-align: middle;"><path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" /></svg></th>
+                  <th style="white-space: nowrap;">Test Code <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12" style="color: #666; margin-left: 4px; vertical-align: middle;"><path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" /></svg></th>
+                  <th style="white-space: nowrap;">Price (₹) <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12" style="color: #666; margin-left: 4px; vertical-align: middle;"><path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" /></svg></th>
+                  <th style="white-space: nowrap;">Sample Type <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12" style="color: #666; margin-left: 4px; vertical-align: middle;"><path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" /></svg></th>
+                  <th style="white-space: nowrap;">Department <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12" style="color: #666; margin-left: 4px; vertical-align: middle;"><path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" /></svg></th>
+                  <th style="white-space: nowrap;">Outsourced <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12" style="color: #666; margin-left: 4px; vertical-align: middle;"><path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" /></svg></th>
+                  <th style="white-space: nowrap;">Outsource Center <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12" style="color: #666; margin-left: 4px; vertical-align: middle;"><path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" /></svg></th>
+                  <th style="white-space: nowrap;">Auto Approval <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12" style="color: #666; margin-left: 4px; vertical-align: middle;"><path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" /></svg></th>
                   <th style="width: 40px"></th>
                 </tr>
               }
@@ -489,18 +654,21 @@ import { LabApiService } from '../../core/services/lab-api.service';
                   @for (test of group.items; track test.id) {
                     <tr>
                       <td><input type="checkbox" /></td>
-                      <td>
+                      <td style="white-space: normal; min-width: 250px;">
                         <strong>{{ test.name }}</strong>
                         <span class="status-badge">Not Verified</span>
                       </td>
-                      <td>{{ test.code || 'undefined' }}</td>
+                      <td style="white-space: normal; min-width: 150px;">{{ test.code || 'undefined' }}</td>
                       <td>₹{{ test.price ?? 0 }}</td>
                       @if (activeMainTab() !== 'PROFILE') {
                         <td>{{ test.sampleType || '—' }}</td>
                         <td>{{ (test.category || '—') | uppercase }}</td>
                       }
                       <td>No</td> <!-- Mocked -->
-                      <td>No</td> <!-- Mocked -->
+                      @if (activeMainTab() !== 'PROFILE') {
+                        <td>Self</td> <!-- Mocked Outsource Center -->
+                      }
+                      <td>No</td> <!-- Mocked Auto Approval -->
                       <td><button class="action-btn">⋮</button></td>
                     </tr>
                   }
@@ -520,100 +688,530 @@ import { LabApiService } from '../../core/services/lab-api.service';
             <h2 class="modal-title">{{ addingType() === 'PROFILE' ? 'Add Profile' : 'Test List (Add Report)' }}</h2>
             <button class="close-btn" (click)="closeModal()">×</button>
           </div>
-          <div class="modal-body">
+          <div class="modal-body" style="position: relative;">
             <div class="modal-tabs">
-              <div class="modal-tab active">Test Information</div>
-              <div class="modal-tab">Report Parameters</div>
+              <div class="modal-tab" [class.active]="activeModalTab() === 'Info'" (click)="activeModalTab.set('Info')">Test Information</div>
+              <div class="modal-tab" [class.active]="activeModalTab() === 'Params'" (click)="activeModalTab.set('Params')">Report Parameters</div>
               <div class="modal-tab">Supplementary Test</div>
               <div class="modal-tab">Report Templating</div>
               <div class="modal-tab">Parent Test Mapping</div>
-              <div class="modal-tab">Report Settings</div>
+              <div class="modal-tab" [class.active]="activeModalTab() === 'ReportSettings'" (click)="activeModalTab.set('ReportSettings')">Report Settings</div>
             </div>
 
-            <form [formGroup]="testForm">
-              <div class="form-grid">
-                <label>Test Name <span style="color:red">*</span></label>
-                <input type="text" formControlName="name" placeholder="Enter Test Name" />
-                @if (isInvalid('name')) { <div class="invalid-feedback">Required</div> }
+            @if (activeModalTab() === 'Info') {
+              <form [formGroup]="testForm">
+                <div class="form-grid">
+                  <label>Test Name <span style="color:red">*</span></label>
+                  <input type="text" formControlName="name" placeholder="Enter Test Name" />
+                  @if (isInvalid('name')) { <div class="invalid-feedback">Required</div> }
+                </div>
+
+                <div class="form-grid">
+                  <label>Sample Type</label>
+                  <select formControlName="sampleType">
+                    <option value="">Sample Type</option>
+                    <option value="Serum">Serum</option>
+                    <option value="Plasma">Plasma</option>
+                    <option value="Whole Blood">Whole Blood</option>
+                    <option value="Urine">Urine</option>
+                  </select>
+                </div>
+
+                <div class="form-grid">
+                  <label>Test Code</label>
+                  <input type="text" formControlName="code" placeholder="Enter Test Code" />
+                </div>
+
+                <div class="form-grid">
+                  <label>Integration Code</label>
+                  <input type="text" formControlName="integrationCode" placeholder="Enter the Integration Code" />
+                </div>
+
+                <div class="form-grid">
+                  <label>Procedure Code</label>
+                  <select formControlName="procedureCode">
+                    <option value="">Select Procedure Code</option>
+                    <option value="PROC-1">PROC-1</option>
+                    <option value="PROC-2">PROC-2</option>
+                  </select>
+                </div>
+
+                <div class="form-grid">
+                  <label>LOINC Code</label>
+                  <input type="text" formControlName="loincCode" placeholder="Enter LOINC Code" />
+                </div>
+
+                <div class="form-grid">
+                  <label>Short Text</label>
+                  <input type="text" formControlName="shortText" placeholder="Enter Short Text" />
+                </div>
+
+                <div class="form-grid">
+                  <label>Test Alias</label>
+                  <input type="text" formControlName="testAlias" placeholder="Type an alias and press Enter" />
+                </div>
+
+                <div class="form-grid">
+                  <label>Test Type (Category) <span style="color:red">*</span></label>
+                  <select formControlName="category">
+                    <option value="Pathology">Pathology</option>
+                    <option value="Hematology">Hematology</option>
+                    <option value="Biochemistry">Biochemistry</option>
+                    <option value="Serology">Serology</option>
+                    <option value="Microbiology">Microbiology</option>
+                  </select>
+                  @if (isInvalid('category')) { <div class="invalid-feedback">Required</div> }
+                </div>
+
+                <div class="form-grid">
+                  <label>Price (₹) <span style="color:red">*</span></label>
+                  <input type="number" formControlName="price" placeholder="0" min="0" />
+                  @if (isInvalid('price')) { <div class="invalid-feedback">Required</div> }
+                </div>
+
+                <div class="form-grid">
+                  <label>ICD(s) TO PIN</label>
+                  <input type="text" formControlName="icdToPin" placeholder="Select ICD Code" />
+                </div>
+
+                <div class="form-grid">
+                  <div></div>
+                  <div class="checkbox-wrap">
+                    <input type="checkbox" id="autoAdd" />
+                    <label for="autoAdd" style="text-align: left; margin: 0">Auto-add to the test</label>
+                  </div>
+                </div>
+              </form>
+            } @else if (activeModalTab() === 'Params') {
+              <div class="add-param-dropdown">
+                <button class="add-param-btn" (click)="showParamMenu.set(!showParamMenu())">Add New Parameter ▾</button>
+                @if (showParamMenu()) {
+                  <div class="param-menu">
+                    <div class="param-menu-item">
+                      Pathology <span>›</span>
+                      <div class="sub-menu">
+                        <div class="param-menu-item" (click)="addParameter('Test With Normal Range')">Test With Normal Range</div>
+                        <div class="param-menu-item" (click)="addParameter('Test With Descriptive Range')">Test With Descriptive Range</div>
+                        <div class="param-menu-item" (click)="addParameter('Test With Age Specific Range')">Test With Age Specific Range</div>
+                        <div class="param-menu-item" (click)="addParameter('Descriptive (No Ranges)')">Descriptive (No Ranges)</div>
+                        <div class="param-menu-item" (click)="addParameter('List Field')">List Field</div>
+                        <div class="param-menu-item" (click)="addParameter('File')">File</div>
+                        <div class="param-menu-item" (click)="addParameter('Graph')">Graph</div>
+                        <div class="param-menu-item" (click)="addParameter('Image')">Image</div>
+                      </div>
+                    </div>
+                    <div class="param-menu-item">
+                      Radiology <span>›</span>
+                      <div class="sub-menu">
+                        <div class="param-menu-item" (click)="addParameter('Descriptive (No Ranges)')">Descriptive (No Ranges)</div>
+                        <div class="param-menu-item" (click)="addParameter('File')">File</div>
+                        <div class="param-menu-item" (click)="addParameter('List Field')">List Field</div>
+                        <div class="param-menu-item" (click)="addParameter('Image')">Image</div>
+                      </div>
+                    </div>
+                    <div class="param-menu-item">
+                      Style <span>›</span>
+                      <div class="sub-menu">
+                        <div class="param-menu-item" (click)="addParameter('Heading With Separator Line')">Heading With Separator Line</div>
+                        <div class="param-menu-item" (click)="addParameter('Heading')">Heading</div>
+                        <div class="param-menu-item" (click)="addParameter('Heading In Center')">Heading In Center</div>
+                        <div class="param-menu-item" (click)="addParameter('Space')">Space</div>
+                        <div class="param-menu-item" (click)="addParameter('Separator Line')">Separator Line</div>
+                        <div class="param-menu-item" (click)="addParameter('Page Break')">Page Break</div>
+                      </div>
+                    </div>
+                  </div>
+                }
               </div>
 
-              <div class="form-grid">
-                <label>Sample Type</label>
-                <select formControlName="sampleType">
-                  <option value="">Sample Type</option>
-                  <option value="Serum">Serum</option>
-                  <option value="Plasma">Plasma</option>
-                  <option value="Whole Blood">Whole Blood</option>
-                  <option value="Urine">Urine</option>
-                </select>
-              </div>
+              <div class="parameters-builder">
+                <div class="pb-sidebar">
+                  <div class="pb-sidebar-header">
+                    <span>Test Parameters ({{ testParameters().length }})</span>
+                  </div>
+                  @for (param of testParameters(); track param.id; let i = $index) {
+                    <div class="pb-item" [class.active]="selectedParam()?.id === param.id" (click)="selectedParam.set(param)">
+                      <div>
+                        <strong>{{ param.name || param.type }}</strong>
+                        <div style="font-size:11px;color:#666;margin-top:2px;">{{ param.type }}</div>
+                      </div>
+                      <span style="color:#999;font-size:16px;" (click)="$event.stopPropagation(); removeParam(param.id)">✕</span>
+                    </div>
+                  }
+                </div>
+                <div class="pb-content" (click)="showParamMenu.set(false)">
+                  @if (selectedParam()) {
+                    <div class="param-form-header">
+                      <span>Parameters Information</span>
+                      <a href="javascript:void(0)" style="color:#666;font-size:12px;font-weight:normal;">Duplicate/Copy</a>
+                    </div>
+                    
+                    @if (selectedParam()!.type === 'Heading With Separator Line' || selectedParam()!.type === 'Heading' || selectedParam()!.type === 'Heading In Center') {
+                      <div class="param-form-grid">
+                        <div class="full-width">
+                          <label>Name <span style="color:red">*</span></label>
+                          <input type="text" [(ngModel)]="selectedParam()!.name" class="form-control" placeholder="Enter Name">
+                        </div>
+                      </div>
+                    } @else if (selectedParam()!.type === 'Space' || selectedParam()!.type === 'Separator Line' || selectedParam()!.type === 'Page Break') {
+                      <!-- Intentionally empty to skip rendering anything but Other Info -->
+                    } @else if (selectedParam()!.type === 'Image') {
+                      <div class="param-form-grid">
+                        <div class="full-width">
+                          <label>Enter Component Title <span style="color:red">*</span></label>
+                          <input type="text" [(ngModel)]="selectedParam()!.name" class="form-control" placeholder="Image">
+                        </div>
+                        <div class="full-width">
+                          <label>Max Rows <span style="color:red">*</span></label>
+                          <select class="form-control"><option>Select number of Rows</option></select>
+                        </div>
+                        <div class="full-width">
+                          <label>Max Columns <span style="color:red">*</span></label>
+                          <select class="form-control"><option>Select number of Columns</option></select>
+                        </div>
+                      </div>
+                    } @else if (selectedParam()!.type === 'File') {
+                      <div class="param-form-grid">
+                        <div class="full-width">
+                          <label>Name <span style="color:red">*</span></label>
+                          <input type="text" [(ngModel)]="selectedParam()!.name" class="form-control" placeholder="File">
+                        </div>
+                        <div class="full-width">
+                          <label>Integration Code</label>
+                          <input type="text" [(ngModel)]="selectedParam()!.integrationCode" class="form-control" placeholder="Enter the Integration Code">
+                        </div>
+                        <div class="full-width">
+                          <label>LOINC Code</label>
+                          <input type="text" [(ngModel)]="selectedParam()!.loincCode" class="form-control" placeholder="Enter LOINC Code">
+                        </div>
+                        <div class="full-width">
+                          <label>Height of image on pdf <span style="color:red">*</span></label>
+                          <input type="text" class="form-control" placeholder="Enter the height of image on pdf">
+                        </div>
+                        <div class="full-width">
+                          <label>Default image on pdf</label>
+                          <div style="color: var(--clr-primary-600); cursor: pointer; font-size: 13px; margin: 4px 0;">Upload File ⬆️</div>
+                          <div style="font-size: 11px; color: #888;">Info: You will be asked to upload the file for this test at the time of Report Entry</div>
+                        </div>
+                        <div class="full-width">
+                          <label>Dictionary</label>
+                          <select class="form-control" [(ngModel)]="selectedParam()!.dictionary">
+                            <option value="">Select Dictionary</option>
+                          </select>
+                        </div>
+                        <div class="full-width">
+                          <label>Linked Parameters <span style="color:#2563eb;font-weight:bold;">ℹ️</span></label>
+                          <select class="form-control" [(ngModel)]="selectedParam()!.linkedParameter">
+                            <option value="">Select Parameter to link</option>
+                          </select>
+                          <div style="font-size:11px;color:#888;margin-top:4px;">Any update to this parameter will update the linked parameter as well (Remove existing linking to link another parameter)</div>
+                        </div>
+                      </div>
+                    } @else {
+                      <div class="param-form-grid">
+                        <div>
+                          <label>Name <span style="color:red">*</span></label>
+                          <input type="text" [(ngModel)]="selectedParam()!.name" class="form-control" placeholder="Enter Name">
+                        </div>
+                        @if (selectedParam()!.type !== 'Descriptive (No Ranges)') {
+                          <div>
+                            <label>Unit</label>
+                            <input type="text" [(ngModel)]="selectedParam()!.unit" class="form-control" placeholder="Enter The Value Unit">
+                          </div>
+                        }
+                        <div class="full-width">
+                          <label>Method</label>
+                          <input type="text" [(ngModel)]="selectedParam()!.method" class="form-control" placeholder="Enter the Method Name">
+                        </div>
+                        <div class="full-width">
+                          <label>Integration Code</label>
+                          <input type="text" [(ngModel)]="selectedParam()!.integrationCode" class="form-control" placeholder="Enter the Integration Code">
+                        </div>
+                        <div class="full-width">
+                          <label>LOINC Code</label>
+                          <input type="text" [(ngModel)]="selectedParam()!.loincCode" class="form-control" placeholder="Enter LOINC Code">
+                        </div>
+                        <div class="full-width">
+                          <label>Dictionary</label>
+                          <select class="form-control" [(ngModel)]="selectedParam()!.dictionary">
+                            <option value="">Select Dictionary</option>
+                          </select>
+                        </div>
+                        <div class="full-width">
+                          <label>Linked Parameters <span style="color:#2563eb;font-weight:bold;">ℹ️</span></label>
+                          <select class="form-control" [(ngModel)]="selectedParam()!.linkedParameter">
+                            <option value="">Select Parameter to link</option>
+                          </select>
+                          <div style="font-size:11px;color:#888;margin-top:4px;">Any update to this parameter will update the linked parameter as well (Remove existing linking to link another parameter)</div>
+                        </div>
+                        @if (selectedParam()!.type === 'Test With Normal Range' || selectedParam()!.type === 'Test With Age Specific Range') {
+                          <div>
+                            <label>Delta Check Threshold (In %)</label>
+                            <input type="text" [(ngModel)]="selectedParam()!.deltaCheck" class="form-control" placeholder="10">
+                          </div>
+                        }
+                      </div>
 
-              <div class="form-grid">
-                <label>Test Code</label>
-                <input type="text" formControlName="code" placeholder="Enter Test Code" />
-              </div>
+                      @if (selectedParam()!.type === 'List Field') {
+                        <div class="param-tabs">
+                          <div class="param-tab" [class.active]="paramTab() === 'Normal'" (click)="paramTab.set('Normal')">Normal Ranges</div>
+                        </div>
+                        
+                        <div class="param-form-grid" style="align-items: center;">
+                          <div style="font-size: 13px; color: #555;">Male Range</div>
+                          <div style="display:flex; gap:12px; align-items:center; grid-column: 2;">
+                            <input type="text" class="form-control" placeholder="Lower Range"> - 
+                            <input type="text" class="form-control" placeholder="Upper Range">
+                          </div>
+                          
+                          <div style="font-size: 13px; color: #555; align-self: start;">Descriptive</div>
+                          <div style="grid-column: 2;">
+                            <textarea class="form-control" rows="2" placeholder="Enter Description"></textarea>
+                            <div style="text-align: right; font-size: 12px; color: #555; margin-top: 4px;">
+                              <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer;"><input type="checkbox"> Advance Editor</label>
+                            </div>
+                          </div>
+                          
+                          <div style="font-size: 13px; color: #555; margin-top: 16px;">Female Range</div>
+                          <div style="display:flex; gap:12px; align-items:center; grid-column: 2; margin-top: 16px;">
+                            <input type="text" class="form-control" placeholder="Lower Range"> - 
+                            <input type="text" class="form-control" placeholder="Upper Range">
+                          </div>
+                          
+                          <div style="font-size: 13px; color: #555; align-self: start;">Descriptive</div>
+                          <div style="grid-column: 2;">
+                            <textarea class="form-control" rows="2" placeholder="Enter Description"></textarea>
+                            <div style="text-align: right; font-size: 12px; color: #555; margin-top: 4px;">
+                              <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer;"><input type="checkbox"> Advance Editor</label>
+                            </div>
+                          </div>
+                          
+                          <div style="font-size: 13px; color: #555; margin-top: 16px; align-self: start;">Enter values</div>
+                          <div style="grid-column: 2; margin-top: 16px;">
+                            <textarea class="form-control" rows="2" placeholder="Enter value and click add value till all values are entered (Entering # not allowed)"></textarea>
+                            <div style="text-align: right; font-size: 12px; color: #555; margin-top: 8px; display: flex; gap: 12px; justify-content: flex-end;">
+                              <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer;"><input type="checkbox"> Mark As Critical</label>
+                              <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer;"><input type="checkbox"> Highlight</label>
+                            </div>
+                            
+                            <div style="display: flex; gap: 12px; justify-content: center; margin-top: 16px;">
+                              <button type="button" style="padding: 6px 16px; background: white; border: 1px solid var(--clr-primary-600); color: var(--clr-primary-600); border-radius: 4px; font-size: 13px; cursor: pointer;">Add value</button>
+                              <button type="button" style="padding: 6px 16px; background: white; border: 1px solid var(--clr-danger-600); color: var(--clr-danger-600); border-radius: 4px; font-size: 13px; cursor: pointer;">Delete value</button>
+                            </div>
+                          </div>
+                        </div>
+                      } @else if (selectedParam()!.type === 'Test With Normal Range' || selectedParam()!.type === 'Descriptive (No Ranges)') {
+                        <div class="param-tabs">
+                          <div class="param-tab" [class.active]="paramTab() === 'Normal'" (click)="paramTab.set('Normal')">Normal Ranges</div>
+                          <div class="param-tab" [class.active]="paramTab() === 'Critical'" (click)="paramTab.set('Critical')">Critical Ranges</div>
+                          <div class="param-tab" [class.active]="paramTab() === 'Calculation'" (click)="paramTab.set('Calculation')">Calculation</div>
+                          <div class="param-tab" [class.active]="paramTab() === 'Rerun'" (click)="paramTab.set('Rerun')">Rerun</div>
+                        </div>
 
-              <div class="form-grid">
-                <label>Integration Code</label>
-                <input type="text" formControlName="integrationCode" placeholder="Enter the Integration Code" />
-              </div>
+                        @if (paramTab() === 'Normal' || paramTab() === 'Critical') {
+                          @if (paramTab() === 'Critical') {
+                            <div style="display:flex; justify-content:flex-end; margin-bottom: 8px;">
+                              <label style="font-size: 13px; color: #555;"><input type="checkbox" style="margin-right: 4px;"> Same as Normal Ranges</label>
+                            </div>
+                          }
+                          <div class="param-form-grid" style="align-items: center;">
+                            <div style="font-size: 13px; color: #555;">Male Range</div>
+                            <div style="display:flex; gap:12px; align-items:center; grid-column: 2;">
+                              <input type="text" class="form-control" placeholder="Lower Range"> - 
+                              <input type="text" class="form-control" placeholder="Upper Range">
+                            </div>
+                            <div style="font-size: 13px; color: #555; margin-top: 16px;">Female Range</div>
+                            <div style="display:flex; gap:12px; align-items:center; grid-column: 2; margin-top: 16px;">
+                              <input type="text" class="form-control" placeholder="Lower Range"> - 
+                              <input type="text" class="form-control" placeholder="Upper Range">
+                            </div>
+                          </div>
+                        } @else if (paramTab() === 'Calculation') {
+                          <div class="param-form-grid" style="align-items:center;">
+                            <div style="font-size: 13px; color: #555;">Select Formula from Presets</div>
+                            <div style="grid-column:2">
+                              <select class="form-control"><option>Select Preset</option></select>
+                              <div style="text-align:right; font-size:12px; color:var(--clr-primary-600); cursor:pointer; margin-top:4px;">Custom Calculation</div>
+                            </div>
+                            <div style="font-size: 13px; color: #555; margin-top: 24px;">Formula Preview</div>
+                            <div style="grid-column:2; margin-top: 24px;">
+                              <textarea class="form-control" rows="3" disabled style="background: #f1f5f9;"></textarea>
+                            </div>
+                          </div>
+                        }
+                      }
+                    }
 
-              <div class="form-grid">
-                <label>Procedure Code</label>
-                <select formControlName="procedureCode">
-                  <option value="">Select Procedure Code</option>
-                  <option value="PROC-1">PROC-1</option>
-                  <option value="PROC-2">PROC-2</option>
-                </select>
-              </div>
+                    @if (selectedParam()!.type !== 'Image') {
+                      <div style="font-size: 13px; color: #555; margin-top: 24px; margin-bottom: 8px;">Other Info</div>
+                      <div class="checkbox-grid">
+                        <label><input type="checkbox"> Hide Parameter</label>
+                        <label><input type="checkbox"> Customized Parameter</label>
+                        <label><input type="checkbox"> Highlight this value</label>
+                        <label><input type="checkbox"> Underline this value</label>
+                        <label><input type="checkbox"> Non-editable field</label>
+                        <label><input type="checkbox"> Optional field</label>
+                        <label><input type="checkbox"> Has Impressions</label>
+                        <label><input type="checkbox"> Hide Parameter Trends</label>
+                        <label><input type="checkbox"> Report only when Positive</label>
+                        <label><input type="checkbox"> Block Saving Report</label>
+                      </div>
+                    }
 
-              <div class="form-grid">
-                <label>LOINC Code</label>
-                <input type="text" formControlName="loincCode" placeholder="Enter LOINC Code" />
-              </div>
-
-              <div class="form-grid">
-                <label>Short Text</label>
-                <input type="text" formControlName="shortText" placeholder="Enter Short Text" />
-              </div>
-
-              <div class="form-grid">
-                <label>Test Alias</label>
-                <input type="text" formControlName="testAlias" placeholder="Type an alias and press Enter" />
-              </div>
-
-              <div class="form-grid">
-                <label>Test Type (Category) <span style="color:red">*</span></label>
-                <select formControlName="category">
-                  <option value="Pathology">Pathology</option>
-                  <option value="Hematology">Hematology</option>
-                  <option value="Biochemistry">Biochemistry</option>
-                  <option value="Serology">Serology</option>
-                  <option value="Microbiology">Microbiology</option>
-                </select>
-                @if (isInvalid('category')) { <div class="invalid-feedback">Required</div> }
-              </div>
-
-              <div class="form-grid">
-                <label>Price (₹) <span style="color:red">*</span></label>
-                <input type="number" formControlName="price" placeholder="0" min="0" />
-                @if (isInvalid('price')) { <div class="invalid-feedback">Required</div> }
-              </div>
-
-              <div class="form-grid">
-                <label>ICD(s) TO PIN</label>
-                <input type="text" formControlName="icdToPin" placeholder="Select ICD Code" />
-              </div>
-
-              <div class="form-grid">
-                <div></div>
-                <div class="checkbox-wrap">
-                  <input type="checkbox" id="autoAdd" />
-                  <label for="autoAdd" style="text-align: left; margin: 0">Auto-add to the test</label>
+                  } @else {
+                    <div style="color:#888; text-align:center; margin-top: 80px;">Select a parameter from the left or add a new one from the dropdown above.</div>
+                  }
                 </div>
               </div>
+            } @else if (activeModalTab() === 'ReportSettings') {
+              <div class="report-settings-tab" style="padding: 16px 24px; max-height: 70vh; overflow-y: auto;">
+                <div style="text-align: center; margin-bottom: 24px;">
+                  <span style="background: #475569; color: white; padding: 6px 16px; border-radius: 4px; font-size: 13px; font-weight: 500;">Default Setting</span>
+                </div>
+                
+                <div class="param-form-grid" style="grid-template-columns: repeat(3, 1fr);">
+                  <div class="full-width" style="grid-column: span 3;">
+                    <label>Setting Name <span style="color:red">*</span></label>
+                    <input type="text" class="form-control" [(ngModel)]="reportSettings().settingName" disabled style="background: #e2e8f0; color: #334155; font-weight: 500;">
+                  </div>
+                  
+                  <div>
+                    <label>Paper Size</label>
+                    <select class="form-control" [(ngModel)]="reportSettings().paperSize"><option value="A4">A4</option><option value="Letter">Letter</option></select>
+                  </div>
+                  <div>
+                    <label>Patient Info <span style="color:red">*</span></label>
+                    <input type="text" class="form-control" [(ngModel)]="reportSettings().patientInfo">
+                  </div>
+                  <div>
+                    <label>Font Type <span style="color:red">*</span></label>
+                    <select class="form-control" [(ngModel)]="reportSettings().fontType"><option value="Arial">Arial</option><option value="Times New Roman">Times New Roman</option></select>
+                  </div>
+                  
+                  <div>
+                    <label>Font Size <span style="color:red">*</span></label>
+                    <select class="form-control" [(ngModel)]="reportSettings().fontSize"><option value="8">8</option><option value="9">9</option><option value="10">10</option></select>
+                  </div>
+                  <div>
+                    <label>Primary Sign Position <span style="color:red">*</span></label>
+                    <select class="form-control" [(ngModel)]="reportSettings().primarySignPosition"><option value="Left">Left</option><option value="Center">Center</option><option value="Right">Right</option></select>
+                  </div>
+                  <div>
+                    <label>Max Approval <span style="color:red">*</span></label>
+                    <select class="form-control" [(ngModel)]="reportSettings().maxApproval"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select>
+                  </div>
 
-            </form>
+                  <div>
+                    <label>Header Size <span style="color:red">*</span></label>
+                    <input type="text" class="form-control" [(ngModel)]="reportSettings().headerSize">
+                  </div>
+                  <div>
+                    <label>Vertical Spacing <span style="color:red">*</span></label>
+                    <select class="form-control" [(ngModel)]="reportSettings().verticalSpacing"><option value="None">None</option><option value="Small">Small</option></select>
+                  </div>
+                  <div>
+                    <label>Min Approval <span style="color:red">*</span></label>
+                    <select class="form-control" [(ngModel)]="reportSettings().minApproval"><option value="1">1</option><option value="2">2</option></select>
+                  </div>
+
+                  <div>
+                    <label>Sign Size <span style="color:red">*</span></label>
+                    <input type="text" class="form-control" [(ngModel)]="reportSettings().signSize">
+                  </div>
+                  <div>
+                    <label>Page No X <span style="color:red">*</span></label>
+                    <input type="text" class="form-control" [(ngModel)]="reportSettings().pageNoX">
+                  </div>
+                  <div>
+                    <label>Date Format <span style="color:red">*</span></label>
+                    <select class="form-control" [(ngModel)]="reportSettings().dateFormat"><option value="01/12/2015, 12:00 AM">01/12/2015, 12:00 AM</option></select>
+                  </div>
+
+                  <div>
+                    <label>Footer Size <span style="color:red">*</span></label>
+                    <input type="text" class="form-control" [(ngModel)]="reportSettings().footerSize">
+                  </div>
+                  <div>
+                    <label>Page No Y <span style="color:red">*</span></label>
+                    <input type="text" class="form-control" [(ngModel)]="reportSettings().pageNoY">
+                  </div>
+                  <div>
+                    <label>Paper Margin <span style="color:red">*</span></label>
+                    <input type="text" class="form-control" [(ngModel)]="reportSettings().paperMargin">
+                  </div>
+
+                  <div style="grid-column: span 2;">
+                    <label>Template Name <span style="color:red">*</span></label>
+                    <select class="form-control" [(ngModel)]="reportSettings().templateName"><option value="PDF with 4 columns (Mobile Number)">PDF with 4 columns (Mobile Number)</option></select>
+                  </div>
+                  <div>
+                    <label>End of Report Text</label>
+                    <input type="text" class="form-control" [(ngModel)]="reportSettings().endOfReportText">
+                  </div>
+                </div>
+
+                <div style="display: flex; gap: 24px; margin-top: 16px; margin-bottom: 24px;">
+                  <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:#555; cursor: pointer;">
+                    <input type="checkbox" [(ngModel)]="reportSettings().showPdfHeader"> Show PDF Header
+                  </label>
+                  <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:#555; cursor: pointer;">
+                    <input type="checkbox" [(ngModel)]="reportSettings().showPdfFooter"> Show PDF Footer
+                  </label>
+                </div>
+
+                <div style="background: #e2e8f0; padding: 12px 16px; border-radius: 4px; margin-bottom: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 13px; color: #475569;">Upload Watermark</span>
+                  <span style="color: #475569;">▾</span>
+                </div>
+                <div style="background: #e2e8f0; padding: 12px 16px; border-radius: 4px; margin-bottom: 24px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 13px; color: #475569;">Upload Accreditation Image</span>
+                  <span style="color: #475569;">▾</span>
+                </div>
+
+                <div style="font-size: 13px; color: #555; margin-bottom: 16px;">Other Info</div>
+                <div style="text-align: center; font-size: 13px; color: #64748b; margin-bottom: 16px;">
+                  All the below checked fields will be shown on the PDF w.r.t. the report
+                </div>
+
+                <div class="checkbox-grid" style="grid-template-columns: repeat(3, 1fr); gap: 16px 24px; margin-bottom: 32px;">
+                  <label><input type="checkbox" [(ngModel)]="reportSettings().showPatientName"> Patient Name</label>
+                  <label><input type="checkbox" [(ngModel)]="reportSettings().showPatientAge"> Patient Age</label>
+                  <label><input type="checkbox" [(ngModel)]="reportSettings().showRegistrationNo"> Registration No</label>
+                  
+                  <label><input type="checkbox" [(ngModel)]="reportSettings().showReferringDoctor"> Referring Doctor</label>
+                  <label><input type="checkbox" [(ngModel)]="reportSettings().showReportId"> Report ID</label>
+                  <label><input type="checkbox" [(ngModel)]="reportSettings().showReportDate"> Report Date</label>
+                  
+                  <label><input type="checkbox" [(ngModel)]="reportSettings().showSampleDate"> Sample Date</label>
+                  <label><input type="checkbox" [(ngModel)]="reportSettings().showSampleId"> Sample ID</label>
+                  <label><input type="checkbox" [(ngModel)]="reportSettings().showFloatingSignature"> Floating Signature</label>
+
+                  <label><input type="checkbox" [(ngModel)]="reportSettings().showRegisteredBy"> Registered By</label>
+                  <label><input type="checkbox" [(ngModel)]="reportSettings().showReportedBy"> Reported by</label>
+                  <label><input type="checkbox" [(ngModel)]="reportSettings().showEndOfReport"> End of Report</label>
+
+                  <label><input type="checkbox" [(ngModel)]="reportSettings().hideReportName"> Hide report name</label>
+                  <label><input type="checkbox" [(ngModel)]="reportSettings().showHorizontalLine"> Show horizontal line</label>
+                  <label><input type="checkbox" [(ngModel)]="reportSettings().showOrganization"> Show Organization</label>
+
+                  <label><input type="checkbox" [(ngModel)]="reportSettings().showPrintDate"> Print Date</label>
+                  <label><input type="checkbox" [(ngModel)]="reportSettings().showLabCode"> Lab Code</label>
+                  <label><input type="checkbox" [(ngModel)]="reportSettings().showHpeNo"> HPE No.</label>
+
+                  <label><input type="checkbox" [(ngModel)]="reportSettings().showCalculatedAge"> Calculated Age</label>
+                  <label><input type="checkbox" [(ngModel)]="reportSettings().showPageNumber"> Page Number</label>
+                  <div style="display:none;"></div>
+                  
+                  <label><input type="checkbox" [(ngModel)]="reportSettings().enableQr"> Enable QR</label>
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                  <label style="font-size: 13px; color: #555; display: block; margin-bottom: 8px;">Helper Comment :</label>
+                  <textarea class="form-control" rows="3" [(ngModel)]="reportSettings().helperComment" placeholder="Describe why this change is needed" style="background: #e2e8f0; resize: vertical; border: none; border-radius: 4px;"></textarea>
+                  <div style="text-align: left; font-size: 11px; color: #64748b; margin-top: 4px;">{{ reportSettings().helperComment?.length || 0 }}/250</div>
+                </div>
+              </div>
+            }
           </div>
           <div class="modal-footer">
             <button class="btn-cancel" (click)="closeModal()">Cancel</button>
@@ -638,6 +1236,58 @@ export class TestListPage implements OnInit {
   saving = signal(false);
   addingType = signal<'TEST' | 'PROFILE'>('TEST');
   showExportMenu = signal(false);
+  
+  // Parameters Builder State
+  activeModalTab = signal<'Info' | 'Params' | 'ReportSettings'>('Info');
+  showParamMenu = signal(false);
+  testParameters = signal<any[]>([]);
+  selectedParam = signal<any | null>(null);
+  paramTab = signal<'Normal'|'Critical'|'Calculation'|'Rerun'>('Normal');
+
+  reportSettings = signal<any>({
+    settingName: 'Default Report Setting',
+    paperSize: 'A4',
+    patientInfo: '140',
+    fontType: 'Arial',
+    fontSize: '9',
+    primarySignPosition: 'Right',
+    maxApproval: '2',
+    headerSize: '120',
+    verticalSpacing: 'None',
+    minApproval: '1',
+    signSize: '90',
+    pageNoX: '519',
+    dateFormat: '01/12/2015, 12:00 AM',
+    footerSize: '90',
+    pageNoY: '13',
+    paperMargin: '40',
+    templateName: 'PDF with 4 columns (Mobile Number)',
+    endOfReportText: '**END OF REPORT**',
+    showPdfHeader: false,
+    showPdfFooter: false,
+    helperComment: '',
+    showPatientName: true,
+    showPatientAge: true,
+    showRegistrationNo: true,
+    showReferringDoctor: true,
+    showReportId: true,
+    showReportDate: true,
+    showSampleDate: true,
+    showSampleId: true,
+    showFloatingSignature: false,
+    showRegisteredBy: false,
+    showReportedBy: false,
+    showEndOfReport: true,
+    hideReportName: false,
+    showHorizontalLine: false,
+    showOrganization: true,
+    showPrintDate: false,
+    showLabCode: false,
+    showHpeNo: true,
+    showCalculatedAge: true,
+    showPageNumber: true,
+    enableQr: true
+  });
 
   testForm: FormGroup = this.fb.group({
     name: ['', Validators.required],
@@ -733,11 +1383,39 @@ export class TestListPage implements OnInit {
   openAddModal(type: 'TEST' | 'PROFILE') {
     this.addingType.set(type);
     this.testForm.reset({ category: 'Pathology', price: 0 });
+    this.activeModalTab.set('Info');
+    this.testParameters.set([]);
+    this.selectedParam.set(null);
     this.showModal.set(true);
   }
 
   closeModal() {
     this.showModal.set(false);
+  }
+  
+  addParameter(type: string) {
+    const newParam = {
+      id: Date.now(),
+      type,
+      name: type,
+      unit: '',
+      method: '',
+      integrationCode: '',
+      loincCode: '',
+      dictionary: '',
+      linkedParameter: '',
+      deltaCheck: '10'
+    };
+    this.testParameters.update(p => [...p, newParam]);
+    this.selectedParam.set(newParam);
+    this.showParamMenu.set(false);
+  }
+
+  removeParam(id: number) {
+    this.testParameters.update(p => p.filter(x => x.id !== id));
+    if (this.selectedParam()?.id === id) {
+      this.selectedParam.set(null);
+    }
   }
 
   isInvalid(field: string): boolean {
@@ -808,6 +1486,8 @@ export class TestListPage implements OnInit {
   saveTest() {
     if (this.testForm.invalid) {
       this.testForm.markAllAsTouched();
+      alert('Please fill all required fields in Test Information tab (Test Name, Category, Price)');
+      this.activeModalTab.set('Info');
       return;
     }
     
@@ -831,6 +1511,8 @@ export class TestListPage implements OnInit {
       shortText: formVal.shortText || undefined,
       testAlias: formVal.testAlias || undefined,
       icdToPin: formVal.icdToPin || undefined,
+      parameters: this.testParameters(),
+      reportSettings: this.reportSettings()
     };
     Object.keys(fullPayload).forEach((k) => fullPayload[k] === undefined && delete fullPayload[k]);
 

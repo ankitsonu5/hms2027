@@ -29,11 +29,17 @@ export class LaboratoryService {
     limit = 20,
     search?: string,
     category?: string,
+    isActive?: boolean
   ): Promise<{ data: LabTest[]; total: number; page: number; limit: number }> {
     const qb = this.labTestRepo
       .createQueryBuilder('t')
-      .where('t.tenantId = :tenantId', { tenantId })
-      .andWhere('t.isActive = true');
+      .where('t.tenantId = :tenantId', { tenantId });
+
+    if (isActive !== undefined) {
+      qb.andWhere('t.isActive = :isActive', { isActive });
+    } else {
+      qb.andWhere('t.isActive = true');
+    }
 
     if (search) {
       qb.andWhere('(t.name ILIKE :search OR t.code ILIKE :search)', {
@@ -77,6 +83,15 @@ export class LaboratoryService {
     });
     if (!test) throw new NotFoundException(`Lab test ${id} not found`);
     test.isActive = false;
+    await this.labTestRepo.save(test);
+  }
+
+  async restoreTest(tenantId: string, id: string): Promise<void> {
+    const test = await this.labTestRepo.findOne({
+      where: { id: id, tenantId: tenantId, isActive: false },
+    });
+    if (!test) throw new NotFoundException(`Cancelled lab test ${id} not found`);
+    test.isActive = true;
     await this.labTestRepo.save(test);
   }
 

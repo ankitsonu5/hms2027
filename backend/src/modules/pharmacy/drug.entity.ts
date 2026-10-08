@@ -12,7 +12,9 @@ export enum DosageForm {
   CAPSULE = 'Capsule',
   INJECTION = 'Injection',
   CREAM = 'Cream',
-  DROP = 'Drop',
+  DROP = 'Drops',
+  INHALER = 'Inhaler',
+  OTHER = 'Other',
 }
 
 export enum DrugSchedule {
@@ -34,7 +36,7 @@ export class Drug {
   @Column()
   genericName: string;
 
-  @Column()
+  @Column({ nullable: true })
   brandName: string;
 
   @Column({ type: 'enum', enum: DosageForm })
@@ -58,7 +60,7 @@ export class Drug {
   @Column({ type: 'decimal' })
   mrp: number;
 
-  @Column({ type: 'decimal' })
+  @Column({ type: 'decimal', nullable: true })
   purchaseRate: number;
 
   @Column({ type: 'decimal' })

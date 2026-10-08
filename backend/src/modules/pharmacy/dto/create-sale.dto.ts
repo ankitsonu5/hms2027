@@ -8,6 +8,31 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PaymentMode } from '../pharmacy-sale.entity';
 
+import { Type } from 'class-transformer';
+import { ValidateNested } from 'class-validator';
+
+class SaleItemDto {
+  @IsOptional()
+  @IsString()
+  drugId?: string;
+
+  @IsOptional()
+  @IsString()
+  drugName?: string;
+
+  @IsNotEmpty()
+  quantity: number;
+
+  @IsOptional()
+  mrp: number;
+
+  @IsNotEmpty()
+  saleRate: number;
+
+  @IsOptional()
+  gstPercent: number;
+}
+
 export class CreateSaleDto {
   @ApiProperty({
     description: 'Array of sale items',
@@ -23,19 +48,12 @@ export class CreateSaleDto {
         amount: 23.75,
       },
     ],
+    type: [SaleItemDto]
   })
   @IsArray()
-  @IsNotEmpty()
-  items: Array<{
-    drugId: string;
-    drugName: string;
-    batchId: string;
-    qty: number;
-    mrp: number;
-    gst: number;
-    discount: number;
-    amount: number;
-  }>;
+  @ValidateNested({ each: true })
+  @Type(() => SaleItemDto)
+  items: SaleItemDto[];
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -56,4 +74,19 @@ export class CreateSaleDto {
   @IsOptional()
   @IsString()
   prescriptionRef?: string;
+
+  @IsOptional()
+  isPaid?: boolean;
+
+  @IsOptional()
+  discount?: number;
+
+  @IsOptional()
+  subtotal?: number;
+
+  @IsOptional()
+  gstTotal?: number;
+
+  @IsOptional()
+  totalAmount?: number;
 }

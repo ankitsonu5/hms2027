@@ -43,6 +43,9 @@ class TestQueryDto {
 
   @IsOptional()
   category?: string;
+
+  @IsOptional()
+  isActive?: boolean | string;
 }
 
 class OrderQueryDto {
@@ -78,13 +81,19 @@ export class LaboratoryController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'search', required: false, type: String })
   @ApiQuery({ name: 'category', required: false, type: String })
+  @ApiQuery({ name: 'isActive', required: false, type: Boolean })
   findAllTests(@Req() req: any, @Query() query: TestQueryDto) {
+    let isActiveValue: boolean | undefined = undefined;
+    if (query.isActive === 'true' || query.isActive === true) isActiveValue = true;
+    if (query.isActive === 'false' || query.isActive === false) isActiveValue = false;
+
     return this.labService.findAllTests(
       req.user.tenantId,
       query.page,
       query.limit,
       query.search,
       query.category,
+      isActiveValue
     );
   }
 
@@ -108,6 +117,12 @@ export class LaboratoryController {
   @ApiOperation({ summary: 'Soft-delete a lab test' })
   removeTest(@Req() req: any, @Param('id') id: string) {
     return this.labService.removeTest(req.user.tenantId, id);
+  }
+
+  @Post('tests/:id/restore')
+  @ApiOperation({ summary: 'Restore a cancelled lab test' })
+  restoreTest(@Req() req: any, @Param('id') id: string) {
+    return this.labService.restoreTest(req.user.tenantId, id);
   }
 
   // ── Lab Orders ─────────────────────────────────────────────────────────────

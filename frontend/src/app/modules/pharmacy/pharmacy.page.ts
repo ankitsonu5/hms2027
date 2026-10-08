@@ -248,6 +248,143 @@ type Schedule = 'GENERAL' | 'SCHEDULE_H' | 'SCHEDULE_H1' | 'SCHEDULE_X' | 'NARCO
         color: var(--clr-neutral-400);
         padding: var(--sp-6);
       }
+      .modal-backdrop {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 1000;
+      }
+      .modal {
+        background: #fff; border-radius: var(--radius-lg);
+        width: 100%; max-width: 600px;
+        max-height: 90vh; overflow-y: auto;
+        padding: var(--sp-6);
+        box-shadow: var(--shadow-xl);
+      }
+      .modal-header {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: var(--sp-4);
+      }
+      .modal-title { margin: 0; font-size: var(--text-lg); font-weight: var(--fw-bold); }
+      .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--clr-neutral-500); }
+      .sale-detail-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); margin-bottom: var(--sp-6);
+      }
+      .sale-detail-item {
+        display: flex; flex-direction: column; gap: var(--sp-1);
+      }
+      .sale-detail-label { font-size: var(--text-xs); color: var(--clr-neutral-500); text-transform: uppercase; }
+      .sale-detail-value { font-size: var(--text-sm); font-weight: var(--fw-semibold); }
+      @media print {
+        body * { visibility: hidden; }
+        .modal, .modal * { visibility: visible; }
+        .modal { position: absolute; left: 0; top: 0; width: 100%; max-width: 100%; box-shadow: none; padding: 0; }
+        .modal-backdrop { background: transparent; position: static; }
+        .no-print { display: none !important; }
+      }
+
+      /* Invoice Styles */
+      .invoice-wrapper {
+        width: 100%;
+        margin: 0 auto;
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        color: #000;
+        background: #fff;
+      }
+      .invoice-header {
+        display: flex;
+        justify-content: space-between;
+        border-bottom: 2px solid #000;
+        padding-bottom: 10px;
+        margin-bottom: 10px;
+      }
+      .header-left, .header-center, .header-right {
+        flex: 1;
+      }
+      .header-center {
+        text-align: center;
+      }
+      .header-right {
+        text-align: right;
+        font-size: 12px;
+      }
+      .company-name {
+        color: #2e7d32;
+        font-size: 18px;
+        font-weight: bold;
+      }
+      .company-address, .company-phone {
+        font-size: 12px;
+      }
+      .invoice-title {
+        font-size: 16px;
+        font-weight: bold;
+        margin-top: 10px;
+      }
+      .invoice-meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        border-bottom: 1px solid #000;
+        padding-bottom: 10px;
+        margin-bottom: 10px;
+      }
+      .invoice-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        margin-bottom: 20px;
+      }
+      .invoice-table th, .invoice-table td {
+        border-bottom: none;
+        padding: 4px;
+        text-align: left;
+      }
+      .invoice-table th {
+        border-bottom: 1px solid #000;
+        border-top: 1px solid #000;
+        font-weight: bold;
+        color: #000;
+        background: transparent;
+      }
+      .invoice-table td {
+        background: transparent;
+      }
+      .invoice-table tr:hover td {
+        background: transparent;
+      }
+      .invoice-table td.num, .invoice-table th.num {
+        text-align: right;
+      }
+      .invoice-footer {
+        font-size: 12px;
+        border-top: 1px solid #000;
+        padding-top: 10px;
+      }
+      .footer-totals {
+        display: flex;
+        justify-content: space-between;
+        font-weight: bold;
+        border-bottom: 1px solid #000;
+        padding-bottom: 5px;
+        margin-bottom: 5px;
+      }
+      .footer-terms {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+      }
+      .terms-text {
+        font-size: 10px;
+      }
+      .company-sign {
+        color: #2e7d32;
+        font-weight: bold;
+      }
+      .net-amount {
+        color: #1976d2;
+        font-size: 14px;
+      }
     `,
   ],
   template: `
@@ -293,7 +430,8 @@ type Schedule = 'GENERAL' | 'SCHEDULE_H' | 'SCHEDULE_H1' | 'SCHEDULE_X' | 'NARCO
               <thead>
                 <tr>
                   <th>Patient</th>
-                  <th>Items</th>
+                  <th>Item Name</th>
+                  <th>Qty</th>
                   <th>Total Amount</th>
                   <th>Payment Mode</th>
                   <th>Date</th>
@@ -303,11 +441,11 @@ type Schedule = 'GENERAL' | 'SCHEDULE_H' | 'SCHEDULE_H1' | 'SCHEDULE_X' | 'NARCO
               <tbody>
                 @if (salesLoading()) {
                   <tr class="loading-row">
-                    <td colspan="6">Loading sales...</td>
+                    <td colspan="7">Loading sales...</td>
                   </tr>
                 } @else if (sales().length === 0) {
                   <tr>
-                    <td colspan="6">
+                    <td colspan="7">
                       <div class="empty-state">
                         No sales recorded yet. Click "New Sale" to start.
                       </div>
@@ -317,16 +455,41 @@ type Schedule = 'GENERAL' | 'SCHEDULE_H' | 'SCHEDULE_H1' | 'SCHEDULE_X' | 'NARCO
                   @for (sale of sales(); track sale.id) {
                     <tr>
                       <td>{{ sale.patientName || sale.patientId || '—' }}</td>
-                      <td>{{ sale.items?.length ?? sale.itemCount ?? '—' }}</td>
+                      <td>
+                        @if (sale.items?.length) {
+                          @for (item of sale.items; track item.drugId || $index) {
+                            <div style="font-size: 0.9em; margin-bottom: 2px;">{{ item.drugName || item.name || 'Unknown' }}</div>
+                          }
+                        } @else {
+                          —
+                        }
+                      </td>
+                      <td>
+                        @if (sale.items?.length) {
+                          @for (item of sale.items; track item.drugId || $index) {
+                            <div style="font-size: 0.9em; margin-bottom: 2px;">{{ (item.quantity || item.qty) }}</div>
+                          }
+                        } @else {
+                          —
+                        }
+                      </td>
                       <td>₹{{ sale.totalAmount | number: '1.2-2' }}</td>
                       <td>{{ sale.paymentMode }}</td>
                       <td>{{ sale.createdAt | date: 'dd MMM yyyy' }}</td>
-                      <td>
+                      <td style="display: flex; gap: var(--sp-2);">
                         <button
                           class="btn btn-ghost"
                           style="font-size:var(--text-xs);padding:var(--sp-1) var(--sp-2);"
+                          (click)="viewSale(sale)"
                         >
                           View
+                        </button>
+                        <button
+                          class="btn btn-ghost"
+                          style="font-size:var(--text-xs);padding:var(--sp-1) var(--sp-2); color: var(--clr-danger-600);"
+                          (click)="deleteSale(sale)"
+                        >
+                          Delete
                         </button>
                       </td>
                     </tr>
@@ -365,14 +528,14 @@ type Schedule = 'GENERAL' | 'SCHEDULE_H' | 'SCHEDULE_H1' | 'SCHEDULE_X' | 'NARCO
                     <label>Dosage Form *</label>
                     <select formControlName="dosageForm">
                       <option value="">Select form</option>
-                      <option value="TABLET">Tablet</option>
-                      <option value="CAPSULE">Capsule</option>
-                      <option value="SYRUP">Syrup</option>
-                      <option value="INJECTION">Injection</option>
-                      <option value="CREAM">Cream</option>
-                      <option value="DROPS">Drops</option>
-                      <option value="INHALER">Inhaler</option>
-                      <option value="OTHER">Other</option>
+                      <option value="Tablet">Tablet</option>
+                      <option value="Capsule">Capsule</option>
+                      <option value="Syrup">Syrup</option>
+                      <option value="Injection">Injection</option>
+                      <option value="Cream">Cream</option>
+                      <option value="Drops">Drops</option>
+                      <option value="Inhaler">Inhaler</option>
+                      <option value="Other">Other</option>
                     </select>
                   </div>
                   <div class="form-field">
@@ -643,6 +806,105 @@ type Schedule = 'GENERAL' | 'SCHEDULE_H' | 'SCHEDULE_H1' | 'SCHEDULE_X' | 'NARCO
           }
         </div>
       }
+
+      <!-- SALE VIEW MODAL -->
+      @if (selectedSale()) {
+        <div class="modal-backdrop">
+          <div class="modal" style="max-width: 800px; border-radius: 0;">
+            <div class="form-actions no-print" style="margin-bottom: var(--sp-4);">
+              <button class="btn btn-secondary" (click)="closeSale()">Close</button>
+              <button class="btn btn-primary" (click)="printSale()">Print Receipt</button>
+            </div>
+            
+            <div class="invoice-wrapper">
+              <div class="invoice-header">
+                <div class="header-left">
+                  <div class="company-name">ACCESS PATH LAB</div>
+                  <div class="company-address">14-37-41/1A, KRISHNA NAGAR, MAHARANIPETA, VISAKHAPATNAM-02</div>
+                  <div class="company-phone">Phone: 8522861742, 8374085236</div>
+                </div>
+                <div class="header-center">
+                  <div class="invoice-title">TAX INVOICE</div>
+                </div>
+                <div class="header-right">
+                  <div>GST No : 37ACUFS0880Q1Z0</div>
+                  <div>DlNo1 : 641/AP/VM/V/2008/R</div>
+                  <div>DlNo2 : 641/AP/VM/V/2008/R</div>
+                </div>
+              </div>
+
+              <div class="invoice-meta">
+                <div class="meta-left">
+                  <div><strong>Pt.Name : </strong>{{ selectedSale().patientName || selectedSale().patientId || '—' }}</div>
+                  <div><strong>Dr.Name : </strong>*</div>
+                </div>
+                <div class="meta-center">
+                  <div><strong>BILL TIME : </strong>{{ selectedSale().createdAt | date:'HH:mm:ss' }}</div>
+                  <div><strong>BILL TYPE : </strong>{{ selectedSale().paymentMode }}</div>
+                </div>
+                <div class="meta-right">
+                  <div><strong>InvNo : </strong>CS{{ selectedSale().id.substring(0,6).toUpperCase() }}</div>
+                  <div><strong>InvDate: </strong>{{ selectedSale().createdAt | date:'dd/MM/yyyy' }}</div>
+                </div>
+              </div>
+
+              <table class="invoice-table">
+                <thead>
+                  <tr>
+                    <th>S.No.</th>
+                    <th>Item Name</th>
+                    <th>Pack</th>
+                    <th>Rack</th>
+                    <th>Sch</th>
+                    <th>Mfg</th>
+                    <th>Batch</th>
+                    <th>Expiry</th>
+                    <th class="num">Qty</th>
+                    <th class="num">Rate</th>
+                    <th class="num">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (item of selectedSale().items; track item.drugId || $index; let i = $index) {
+                    <tr>
+                      <td>{{ i + 1 }}</td>
+                      <td>{{ item.drugName || item.name || 'Unknown' }}</td>
+                      <td>1's</td>
+                      <td>—</td>
+                      <td>H</td>
+                      <td>—</td>
+                      <td>—</td>
+                      <td>—</td>
+                      <td class="num">{{ (item.quantity || item.qty) | number:'1.1-1' }}</td>
+                      <td class="num">{{ (item.saleRate || item.mrp) | number: '1.2-2' }}</td>
+                      <td class="num">{{ ((item.saleRate || item.mrp) * (item.quantity || item.qty)) | number: '1.2-2' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+
+              <div class="invoice-footer">
+                <div class="footer-totals">
+                  <span>CGST : {{ ((selectedSale().gstAmount || 0) / 2) | number: '1.2-2' }}</span>
+                  <span>SGST : {{ ((selectedSale().gstAmount || 0) / 2) | number: '1.2-2' }}</span>
+                  <span>Gross : {{ selectedSale().subtotal | number: '1.2-2' }}</span>
+                  <span>Dis.Amt : {{ selectedSale().discountTotal | number: '1.2-2' }}</span>
+                  <span class="net-amount">Net Amt : {{ selectedSale().totalAmount | number: '1.2-2' }}</span>
+                </div>
+                <div class="footer-terms">
+                  <div class="terms-text">
+                    <div>Goods Once Sold Will Not Be Taken Back Or Exchange</div>
+                    <div>Subject to VISAKHAPATNAM Jurisdiction E.&O.E</div>
+                    <div>Note:</div>
+                  </div>
+                  <div class="company-sign">For : ACCESS PATH LAB</div>
+                </div>
+              </div>
+            </div>
+            
+          </div>
+        </div>
+      }
     </div>
   `,
 })
@@ -656,6 +918,7 @@ export class PharmacyPage implements OnInit {
   // Sales
   sales = signal<any[]>([]);
   salesLoading = signal(false);
+  selectedSale = signal<any>(null);
 
   // Drugs
   drugs = signal<any[]>([]);
@@ -703,7 +966,28 @@ export class PharmacyPage implements OnInit {
     this.salesLoading.set(true);
     this.api.listSales().subscribe({
       next: (res) => {
-        this.sales.set(res.data ?? res);
+        let salesData = res.data ?? res;
+        if (Array.isArray(salesData)) {
+          salesData = salesData.map((sale: any) => {
+            if (typeof sale.items === 'string') {
+              try {
+                sale.items = JSON.parse(sale.items);
+              } catch (e) {
+                sale.items = [];
+              }
+            }
+            if (sale.items && sale.items.length) {
+              sale.items = sale.items.map((i: any) => {
+                if (typeof i === 'string') {
+                  return { drugName: 'Unknown', quantity: 1, saleRate: 0 };
+                }
+                return i;
+              });
+            }
+            return sale;
+          });
+        }
+        this.sales.set(salesData);
         this.salesLoading.set(false);
       },
       error: () => this.salesLoading.set(false),
@@ -841,5 +1125,31 @@ export class PharmacyPage implements OnInit {
       NARCOTIC: 'Narcotic',
     };
     return map[schedule] ?? schedule;
+  }
+
+  viewSale(sale: any): void {
+    this.selectedSale.set(sale);
+  }
+
+  closeSale(): void {
+    this.selectedSale.set(null);
+  }
+
+  printSale(): void {
+    window.print();
+  }
+
+  deleteSale(sale: any): void {
+    if (confirm('Are you sure you want to delete this order?')) {
+      this.api.deleteSale(sale.id).subscribe({
+        next: () => {
+          this.loadSales();
+        },
+        error: (err) => {
+          console.error('Failed to delete sale', err);
+          alert('Failed to delete the order.');
+        }
+      });
+    }
   }
 }

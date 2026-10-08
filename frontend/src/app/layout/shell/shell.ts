@@ -114,6 +114,17 @@ const NAV_SECTIONS: NavSection[] = [{ title: '', items: ADMIN_ITEMS }];
           padding: var(--sp-4);
         }
       }
+
+      @media print {
+        hms-sidebar, hms-topbar {
+          display: none !important;
+        }
+        .layout__main {
+          margin: 0 !important;
+          padding: 0 !important;
+          min-height: auto !important;
+        }
+      }
     `,
   ],
 })

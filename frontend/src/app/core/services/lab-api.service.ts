@@ -13,6 +13,9 @@ export class LabApiService extends ApiService {
   updateTest(id: string | number, body: unknown): Observable<any> {
     return this.patch<any>(`laboratory/tests/${id}`, body);
   }
+  restoreTest(id: string | number): Observable<any> {
+    return this.post<any>(`laboratory/tests/${id}/restore`, {});
+  }
 
   listOrders(q?: Record<string, any>): Observable<PagedRes<any>> {
     return this.get<PagedRes<any>>('laboratory/orders', q);

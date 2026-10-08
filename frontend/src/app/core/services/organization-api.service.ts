@@ -7,6 +7,9 @@ export class OrganizationApiService extends ApiService {
   list(): Observable<any[]> {
     return this.get<any[]>('organizations');
   }
+  getOne(id: string): Observable<any> {
+    return this.get<any>(`organizations/${id}`);
+  }
   getRates(id: string): Observable<any[]> {
     return this.get<any[]>(`organizations/${id}/rates`);
   }

@@ -39,6 +39,11 @@ export const routes: Routes = [
           import('./modules/laboratory/laboratory.routes').then((m) => m.LABORATORY_ROUTES),
       },
       {
+        path: 'accession',
+        loadChildren: () =>
+          import('./modules/accession/accession.routes').then((m) => m.ACCESSION_ROUTES),
+      },
+      {
         path: 'pharmacy',
         loadChildren: () =>
           import('./modules/pharmacy/pharmacy.routes').then((m) => m.PHARMACY_ROUTES),

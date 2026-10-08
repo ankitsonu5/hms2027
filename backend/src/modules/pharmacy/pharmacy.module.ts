@@ -5,9 +5,10 @@ import { DrugBatch } from './drug-batch.entity';
 import { PharmacySale } from './pharmacy-sale.entity';
 import { PharmacyService } from './pharmacy.service';
 import { PharmacyController } from './pharmacy.controller';
+import { BillingModule } from '../billing/billing.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Drug, DrugBatch, PharmacySale])],
+  imports: [TypeOrmModule.forFeature([Drug, DrugBatch, PharmacySale]), BillingModule],
   controllers: [PharmacyController],
   providers: [PharmacyService],
   exports: [PharmacyService],

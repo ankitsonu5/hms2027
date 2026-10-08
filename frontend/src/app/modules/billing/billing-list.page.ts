@@ -437,7 +437,7 @@ interface Bill {
                   <th>Bill Id</th>
                   <th>Patient Details</th>
                   <th>Referral</th>
-                  <th>Bill</th>
+                  <th>Department</th>
                   <th>Bill Date</th>
                   <th>Bill Amount</th>
                   <th>Due</th>
@@ -461,7 +461,7 @@ interface Bill {
                       <div class="patient-name">{{ bill.patientName }}</div>
                     </td>
                     <td>—</td>
-                    <td>—</td>
+                    <td>{{ getDepartments(bill) }}</td>
                     <td>{{ bill.billDate | date: 'E MMM dd yyyy' }}</td>
                     <td class="amount amount-grand">{{ bill.grandTotal | number: '1.2-2' }}</td>
                     <td class="amount">{{ bill.balanceAmount | number: '1.2-2' }}</td>
@@ -747,5 +747,26 @@ export class BillingListPage implements OnInit {
       CANCELLED: 'badge badge-danger',
     };
     return map[status] ?? 'badge badge-neutral';
+  }
+
+  getDepartments(bill: any): string {
+    if (!bill.items || !Array.isArray(bill.items) || bill.items.length === 0) {
+      return '—';
+    }
+    const categories = new Set<string>();
+    for (const item of bill.items) {
+      if (item.category) {
+        categories.add(item.category);
+      }
+    }
+    if (categories.size === 0) return '—';
+    
+    // Convert e.g., 'CONSULTATION' -> 'Consultation', 'PHARMACY' -> 'Pharmacy'
+    const sorted = Array.from(categories).map(cat => {
+      if (cat === 'CONSULTATION') return 'Appointment';
+      return cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
+    });
+    
+    return sorted.join(', ');
   }
 }

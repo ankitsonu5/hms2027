@@ -30,4 +30,7 @@ export class PharmacyApiService extends ApiService {
   createSale(body: unknown): Observable<any> {
     return this.post<any>('pharmacy/sales', body);
   }
+  deleteSale(id: string | number): Observable<any> {
+    return this.del<any>(`pharmacy/sales/${id}`);
+  }
 }

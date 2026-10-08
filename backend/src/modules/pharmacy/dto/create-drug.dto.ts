@@ -4,6 +4,7 @@ import {
   IsNumber,
   IsOptional,
   IsPositive,
+  Min,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -14,9 +15,10 @@ export class CreateDrugDto {
   @IsString()
   genericName: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  brandName: string;
+  brandName?: string;
 
   @ApiProperty({ enum: DosageForm })
   @IsEnum(DosageForm)
@@ -28,19 +30,20 @@ export class CreateDrugDto {
 
   @ApiProperty()
   @IsNumber()
-  @IsPositive()
+  @Min(0)
   @Type(() => Number)
   mrp: number;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsNumber()
-  @IsPositive()
+  @Min(0)
   @Type(() => Number)
-  purchaseRate: number;
+  purchaseRate?: number;
 
   @ApiProperty()
   @IsNumber()
-  @IsPositive()
+  @Min(0)
   @Type(() => Number)
   saleRate: number;
 

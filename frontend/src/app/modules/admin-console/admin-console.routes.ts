@@ -9,6 +9,16 @@ import { BillingListPage } from '../billing/billing-list.page';
 import { InvoicePage } from '../billing/invoice.page';
 import { BillingFormPage } from '../billing/billing-form.page';
 import { OrganizationListPage } from './organization-list.page';
+import { PhlebotomistListPage } from './phlebotomist-list.page';
+import { PhlebotomistDashboardPage } from './phlebotomist-dashboard.page';
+import { HomeCollectionListPage } from './home-collection-list.page';
+import { HomeCollectionCalendarPage } from './home-collection-calendar.page';
+import { DictionaryMappingPage } from './dictionary-mapping.page';
+import { ReportSettingsPage } from './report-settings.page';
+import { BillSettingsPage } from './bill-settings.page';
+import { InvoiceSettingsPage } from './invoice-settings.page';
+import { CancelledTestsPage } from './cancelled-tests.page';
+import { PendingReportsPage } from './pending-reports.page';
 
 /** Menu paths that have a real page; everything else falls back to the placeholder. */
 const IMPLEMENTED: Record<string, any> = {
@@ -20,6 +30,16 @@ const IMPLEMENTED: Record<string, any> = {
   '/registration/billing-history/invoice': InvoicePage,
   '/test-profile-management/test-list': TestListPage,
   '/client-management': OrganizationListPage,
+  '/registration/home-collection/collections': HomeCollectionListPage,
+  '/registration/home-collection/calendar': HomeCollectionCalendarPage,
+  '/registration/home-collection/phlebotomists': PhlebotomistListPage,
+  '/registration/home-collection/phlebotomist-dashboard': PhlebotomistDashboardPage,
+  '/test-profile-management/dictionary-mapping': DictionaryMappingPage,
+  '/test-profile-management/report-settings': ReportSettingsPage,
+  '/test-profile-management/bill-settings': BillSettingsPage,
+  '/test-profile-management/invoice-settings': InvoiceSettingsPage,
+  '/test-profile-management/cancelled-tests': CancelledTestsPage,
+  '/registration/report-print/pending': PendingReportsPage,
 };
 
 const strip = (p: string) => p.replace(/^\//, '');

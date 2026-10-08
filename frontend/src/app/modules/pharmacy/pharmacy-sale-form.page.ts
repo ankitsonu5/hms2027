@@ -1,8 +1,9 @@
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
-import { RouterModule, Router } from '@angular/router';
+import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { PharmacyApiService } from '../../core/services/pharmacy-api.service';
+import { PatientApiService } from '../../core/services/patient-api.service';
 
 interface DrugResult {
   id: string | number;
@@ -324,7 +325,7 @@ interface DrugResult {
     <div class="page-wrap">
       <div class="page-header">
         <button class="back-btn" (click)="goBack()">&#8592; Back</button>
-        <h1 class="page-title">New Sale</h1>
+        <h1 class="page-title">New Order</h1>
       </div>
 
       <form [formGroup]="saleForm" (ngSubmit)="submitSale()">
@@ -332,12 +333,22 @@ interface DrugResult {
         <div class="section">
           <p class="section-title">Patient Info</p>
           <div class="form-grid">
-            <div class="form-field">
+            <div class="form-field drug-search-wrap">
               <label>Patient Name</label>
-              <input type="text" formControlName="patientName" placeholder="Enter patient name" />
+              <input type="text" formControlName="patientName" placeholder="Enter patient name" (input)="onPatientSearch($event)" (blur)="closePatientResults()" autocomplete="off" />
+              @if (patientSearchResults().length) {
+                <div class="drug-results">
+                  @for (p of patientSearchResults(); track p.id) {
+                    <div class="drug-result-item" (mousedown)="selectPatient(p)">
+                      <div class="drug-result-name">{{ p.firstName }} {{ p.lastName }}</div>
+                      <div class="drug-result-sub">{{ p.uhid }} · {{ p.phone || 'No phone' }}</div>
+                    </div>
+                  }
+                </div>
+              }
             </div>
             <div class="form-field">
-              <label>Patient ID</label>
+              <label>UHID</label>
               <input type="text" formControlName="patientId" placeholder="Optional" />
             </div>
             <div class="form-field">
@@ -396,11 +407,11 @@ interface DrugResult {
                   (input)="recalc()"
                 />
 
-                <!-- MRP (auto-filled, readonly) -->
-                <input type="number" formControlName="mrp" readonly placeholder="—" />
+                <!-- MRP -->
+                <input type="number" formControlName="mrp" placeholder="—" (input)="recalc()" />
 
-                <!-- Sale Rate (auto-filled, readonly) -->
-                <input type="number" formControlName="saleRate" readonly placeholder="—" />
+                <!-- Sale Rate -->
+                <input type="number" formControlName="saleRate" placeholder="—" (input)="recalc()" />
 
                 <!-- Remove row -->
                 <button
@@ -482,7 +493,7 @@ interface DrugResult {
         <div class="form-actions">
           <button type="button" class="btn btn-secondary" (click)="goBack()">Cancel</button>
           <button type="submit" class="btn btn-primary" [disabled]="saving()">
-            {{ saving() ? 'Saving...' : 'Create Sale' }}
+            {{ saving() ? 'Saving...' : 'Create Order' }}
           </button>
         </div>
       </form>
@@ -491,6 +502,8 @@ interface DrugResult {
 })
 export class PharmacySaleFormPage implements OnInit {
   private api = inject(PharmacyApiService);
+  private patientApi = inject(PatientApiService);
+  private route = inject(ActivatedRoute);
   private router = inject(Router);
   private fb = inject(FormBuilder);
 
@@ -499,6 +512,9 @@ export class PharmacySaleFormPage implements OnInit {
 
   drugSearchResults: DrugResult[][] = [];
   private searchTimers: ReturnType<typeof setTimeout>[] = [];
+
+  patientSearchResults = signal<any[]>([]);
+  private patientSearchTimer: ReturnType<typeof setTimeout> | undefined;
 
   subtotal = signal(0);
   gstTotal = signal(0);
@@ -526,6 +542,47 @@ export class PharmacySaleFormPage implements OnInit {
   ngOnInit(): void {
     this.drugSearchResults = [[]];
     this.recalc();
+
+    this.route.queryParams.subscribe(params => {
+      if (params['uhid']) {
+        this.saleForm.patchValue({ patientId: params['uhid'] });
+      } else if (params['patientId']) {
+        this.saleForm.patchValue({ patientId: params['patientId'] });
+      }
+      if (params['patientName']) {
+        this.saleForm.patchValue({ patientName: params['patientName'] });
+      }
+    });
+  }
+
+  onPatientSearch(event: Event): void {
+    const q = (event.target as HTMLInputElement).value.trim();
+    clearTimeout(this.patientSearchTimer);
+    if (q.length < 2) {
+      this.patientSearchResults.set([]);
+      return;
+    }
+    this.patientSearchTimer = setTimeout(() => {
+      this.patientApi.list({ search: q, limit: 8 }).subscribe({
+        next: (res) => {
+          this.patientSearchResults.set(res.data ?? res);
+        },
+      });
+    }, 300);
+  }
+
+  closePatientResults(): void {
+    setTimeout(() => {
+      this.patientSearchResults.set([]);
+    }, 200);
+  }
+
+  selectPatient(p: any): void {
+    this.saleForm.patchValue({
+      patientName: `${p.firstName} ${p.lastName}`,
+      patientId: p.uhid
+    });
+    this.patientSearchResults.set([]);
   }
 
   makeItemRow(): FormGroup {
@@ -614,9 +671,10 @@ export class PharmacySaleFormPage implements OnInit {
 
     const formVal = this.saleForm.getRawValue();
     const items = formVal.items
-      .filter((i: any) => i.drugId)
+      .filter((i: any) => i.drugSearch || i.drugId)
       .map((i: any) => ({
-        drugId: i.drugId,
+        drugId: i.drugId || '00000000-0000-0000-0000-000000000000',
+        drugName: i.drugSearch,
         quantity: i.quantity,
         mrp: i.mrp,
         saleRate: i.saleRate,
@@ -643,7 +701,7 @@ export class PharmacySaleFormPage implements OnInit {
       },
       error: (err: any) => {
         this.saving.set(false);
-        this.errorMsg.set(err?.error?.message ?? 'Failed to create sale. Please try again.');
+        this.errorMsg.set(err?.error?.message ?? 'Failed to create order. Please try again.');
       },
     });
   }

@@ -9,6 +9,8 @@ import { UpdateDrugDto } from './dto/update-drug.dto';
 import { QueryDrugDto } from './dto/query-drug.dto';
 import { AddBatchDto } from './dto/add-batch.dto';
 import { CreateSaleDto } from './dto/create-sale.dto';
+import { BillingService } from '../billing/billing.service';
+import { BillItemCategory } from '../billing/bill.entity';
 
 @Injectable()
 export class PharmacyService {
@@ -21,6 +23,8 @@ export class PharmacyService {
 
     @InjectRepository(PharmacySale)
     private readonly saleRepo: Repository<PharmacySale>,
+
+    private readonly billingService: BillingService,
   ) {}
 
   async findAllDrugs(
@@ -133,25 +137,23 @@ export class PharmacyService {
     dto: CreateSaleDto,
     soldByUserId?: string,
   ): Promise<PharmacySale> {
-    const { items, patientId, patientName, paymentMode, prescriptionRef } = dto;
+    const { items, patientId, patientName, paymentMode, prescriptionRef, discount = 0, isPaid = true } = dto;
 
     // Calculate totals from items
     let subtotal = 0;
-    let discountTotal = 0;
     let gstAmount = 0;
 
     for (const item of items) {
-      const baseAmount = item.mrp * item.qty;
-      const discountAmount = (baseAmount * item.discount) / 100;
-      const afterDiscount = baseAmount - discountAmount;
-      const gst = (afterDiscount * item.gst) / 100;
+      const baseAmount = item.saleRate * item.quantity;
+      // We don't apply item-level discounts anymore, we apply the global discount
+      const gst = (baseAmount * item.gstPercent) / 100;
 
       subtotal += baseAmount;
-      discountTotal += discountAmount;
       gstAmount += gst;
     }
 
-    const totalAmount = subtotal - discountTotal + gstAmount;
+    const discountTotal = discount;
+    const totalAmount = subtotal + gstAmount - discountTotal;
 
     const sale = this.saleRepo.create({
       tenantId,
@@ -165,9 +167,60 @@ export class PharmacyService {
       paymentMode: paymentMode ?? PaymentMode.CASH,
       prescriptionRef,
       soldByUserId,
-      isPaid: true,
+      isPaid,
     });
 
-    return this.saleRepo.save(sale);
+    const savedSale = await this.saleRepo.save(sale);
+
+    // Integrate with central billing system if it's a registered patient
+    if (patientId) {
+      try {
+        const billItems = items.map(i => ({
+          description: i.drugName || 'Pharmacy Item',
+          category: BillItemCategory.PHARMACY,
+          quantity: i.quantity,
+          unitPrice: i.saleRate,
+          gst: i.gstPercent,
+          discount: 0
+        }));
+
+        // Handle flat invoice discount by applying an overall concession percentage
+        let concessionPercentage = 0;
+        if (discount > 0 && subtotal > 0) {
+          concessionPercentage = Number(((discount / (subtotal + gstAmount)) * 100).toFixed(2));
+        }
+
+        const bill = await this.billingService.create(tenantId, {
+          patientId,
+          patientName: patientName || 'Unknown Patient',
+          items: billItems,
+          concessionPercentage: concessionPercentage > 0 ? concessionPercentage : undefined,
+          notes: 'Auto-generated from Pharmacy Sale'
+        });
+
+        if (isPaid) {
+          await this.billingService.addPayment(tenantId, {
+            billId: bill.id,
+            amount: Number(totalAmount.toFixed(2)),
+            paymentMode: (paymentMode ?? PaymentMode.CASH) as any,
+            transactionRef: savedSale.id,
+          });
+        }
+      } catch (err) {
+        console.error('Failed to create central bill for pharmacy sale', err);
+      }
+    }
+
+    return savedSale;
+  }
+
+  async deleteSale(tenantId: string, id: string): Promise<void> {
+    const sale = await this.saleRepo.findOne({ where: { id, tenantId } });
+    if (!sale) {
+      throw new NotFoundException(`Sale with id ${id} not found`);
+    }
+    
+    // We could either soft-delete or hard-delete. Let's hard-delete since it's a direct user request to remove an invalid one.
+    await this.saleRepo.remove(sale);
   }
 }

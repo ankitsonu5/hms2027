@@ -86,4 +86,12 @@ export class CreateLabTestDto {
   @IsString()
   @IsOptional()
   icdToPin?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  parameters?: any;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  reportSettings?: any;
 }
