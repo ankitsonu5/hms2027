@@ -19,4 +19,10 @@ export class OpdApiService extends ApiService {
   remove(id: string | number): Observable<any> {
     return this.del<any>(`opd/${id}`);
   }
+  crossConsultation(id: string | number, body: unknown): Observable<any> {
+    return this.post<any>(`opd/${id}/cross-consultation`, body);
+  }
+  getPatientJourney(patientId: string | number): Observable<any[]> {
+    return this.get<any[]>(`opd/patient-journey/${patientId}`);
+  }
 }

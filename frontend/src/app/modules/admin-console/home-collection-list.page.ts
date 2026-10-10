@@ -11,6 +11,7 @@ import {
 } from '../../core/services/home-collection.service';
 import { PhlebotomistModel } from '../../core/services/phlebotomist-api.service';
 import { PatientApiService } from '../../core/services/patient-api.service';
+import { BillingApiService } from '../../core/services/billing-api.service';
 
 @Component({
   selector: 'hms-home-collection-list',
@@ -1190,8 +1191,8 @@ import { PatientApiService } from '../../core/services/patient-api.service';
             <div class="form-section-title">5. Payment Details</div>
             <div class="form-grid">
               <div class="form-field">
-                <label class="form-label">Total Test Amount</label>
-                <input class="form-control" [value]="'₹' + computedTotalAmount()" readonly style="font-weight: 700; color: #0f172a; background: #f8fafc;" />
+                <label class="form-label">Total Test Amount (₹)</label>
+                <input class="form-control" type="number" [(ngModel)]="formTotalAmount" name="totalAmount" style="font-weight: 700; color: #0f172a; background: #fff;" />
               </div>
 
               <div class="form-field">
@@ -1432,7 +1433,9 @@ export class HomeCollectionListPage implements OnInit {
   formInstructions = '';
   formPaymentMode: HomeCollection['paymentStatus'] = 'Paid';
   selectedTests: string[] = ['Complete Blood Count (CBC)'];
+  formTotalAmount = 350;
   private patientApi = inject(PatientApiService);
+  private billingApi = inject(BillingApiService);
 
   knownPatients: Array<{
     uhid: string;
@@ -1449,6 +1452,10 @@ export class HomeCollectionListPage implements OnInit {
     this.route.queryParams.subscribe((params) => {
       if (params['action'] === 'new') {
         this.openScheduleForm();
+        if (params['uhid']) {
+          this.formPatientType = 'existing';
+          this.selectedExistingPatientId = params['uhid'];
+        }
       }
     });
 
@@ -1477,6 +1484,8 @@ export class HomeCollectionListPage implements OnInit {
           }));
           if (this.formPatientType === 'new') {
             this.loadNextUhid();
+          } else if (this.formPatientType === 'existing' && this.selectedExistingPatientId) {
+            this.onExistingPatientChange();
           }
         }
       },
@@ -1792,6 +1801,13 @@ export class HomeCollectionListPage implements OnInit {
         this.formFastingRequired = true;
       }
     }
+    
+    let sum = 0;
+    for (const tName of this.selectedTests) {
+      const match = this.commonTests.find((c) => c.name === tName);
+      if (match) sum += match.price;
+    }
+    this.formTotalAmount = sum || 500;
   }
 
   computedTubes = computed(() => {
@@ -1803,14 +1819,6 @@ export class HomeCollectionListPage implements OnInit {
     return Array.from(tubes);
   });
 
-  computedTotalAmount(): number {
-    let sum = 0;
-    for (const tName of this.selectedTests) {
-      const match = this.commonTests.find((c) => c.name === tName);
-      if (match) sum += match.price;
-    }
-    return sum || 500;
-  }
 
   saveCollection(): void {
     if (!this.formPatientName || !this.formMobile || this.selectedTests.length === 0) {
@@ -1894,12 +1902,47 @@ export class HomeCollectionListPage implements OnInit {
       phlebotomistVehicle: assignedPhlebo.vehicleType ? `${assignedPhlebo.vehicleType} (${assignedPhlebo.vehicleNumber || ''})` : undefined,
       status: 'SCHEDULED',
       paymentStatus: this.formPaymentMode,
-      totalAmount: this.computedTotalAmount(),
+      totalAmount: this.formTotalAmount,
       temperatureCelsius: 4.0,
     });
 
     this.activeSlip.set(newCol);
     this.activeTab.set('list');
+
+    // Create a bill for the scheduled home collection
+    const billPayload = {
+      patientId: patientId,
+      patientName: this.formPatientName,
+      items: [
+        {
+          description: `Home Collection - ${this.selectedTests.join(', ')}`,
+          category: 'LAB',
+          quantity: 1,
+          unitPrice: Number(this.formTotalAmount),
+          discount: 0,
+          gst: 0
+        }
+      ],
+      notes: `Home collection scheduled. Mode: ${this.formPaymentMode}`
+    };
+
+    this.billingApi.create(billPayload).subscribe({
+      next: (res) => {
+        console.log('Bill created for home collection:', res);
+        if ((this.formPaymentMode === 'Paid' || this.formPaymentMode === 'UPI on Collection' || this.formPaymentMode === 'Cash on Collection') && res && res.id) {
+          const pm = this.formPaymentMode === 'Paid' ? 'UPI' : (this.formPaymentMode === 'UPI on Collection' ? 'UPI' : 'CASH');
+          this.billingApi.addPayment(res.id, {
+            amount: Number(this.formTotalAmount),
+            paymentMode: pm,
+            transactionRef: 'Home Collection'
+          }).subscribe({
+            next: () => console.log('Payment recorded automatically.'),
+            error: (err) => console.error('Failed to add payment:', err)
+          });
+        }
+      },
+      error: (err) => console.error('Failed to create bill:', err)
+    });
   }
 
   getTubeClass(tubeName: string): string {

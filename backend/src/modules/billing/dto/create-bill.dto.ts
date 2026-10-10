@@ -89,9 +89,20 @@ export class CreateBillDto {
   @IsString()
   concessionReason?: string;
 
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
   @Min(0)
   concessionPercentage?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sponsorName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  claimStatus?: string;
 }

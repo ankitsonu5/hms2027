@@ -30,6 +30,11 @@ export class BillingController {
     return this.billingService.findAll(req.user.tenantId, query);
   }
 
+  @Get('reports/credit-outstanding')
+  getCreditOutstanding(@Req() req: any) {
+    return this.billingService.getCreditOutstanding(req.user.tenantId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @Req() req: any) {
     return this.billingService.findOne(req.user.tenantId, id);

@@ -15,6 +15,12 @@ export enum OpdStatus {
   ADMITTED = 'ADMITTED',
 }
 
+export enum OpdConsultationType {
+  INITIAL = 'INITIAL',
+  FOLLOW_UP = 'FOLLOW_UP',
+  CROSS_CONSULTATION = 'CROSS_CONSULTATION',
+}
+
 export interface PrescriptionItem {
   drugName: string;
   dosage: string;
@@ -92,6 +98,20 @@ export class OpdEncounter {
 
   @Column({ nullable: true })
   referredToDoctorName: string;
+
+  // Cross Consultation Links
+  @Column({ nullable: true })
+  parentEncounterId: string;
+
+  @Column({ nullable: true })
+  referringDepartment: string;
+
+  @Column({
+    type: 'enum',
+    enum: OpdConsultationType,
+    default: OpdConsultationType.INITIAL,
+  })
+  consultationType: OpdConsultationType;
 
   @Column({ default: true })
   isActive: boolean;

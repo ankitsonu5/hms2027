@@ -6,6 +6,8 @@ import { Patient } from '../patient/patient.entity';
 import { CreateOpdDto } from './dto/create-opd.dto';
 import { UpdateOpdDto } from './dto/update-opd.dto';
 import { QueryOpdDto } from './dto/query-opd.dto';
+import { CrossConsultationDto } from './dto/cross-consultation.dto';
+import { OpdStatus, OpdConsultationType } from './opd-encounter.entity';
 
 @Injectable()
 export class OpdService {
@@ -41,6 +43,8 @@ export class OpdService {
         gender: true,
         dob: true,
         phone: true,
+        category: true,
+        sponsorName: true,
       },
     });
     const byId = new Map(patients.map((p) => [p.id, p]));
@@ -112,6 +116,13 @@ export class OpdService {
     return encounter;
   }
 
+  async getPatientJourney(tenantId: string, patientId: string): Promise<OpdEncounter[]> {
+    return this.repo.find({
+      where: { tenantId, patientId, isActive: true },
+      order: { createdAt: 'ASC' }, // Chronological order
+    });
+  }
+
   async create(tenantId: string, dto: CreateOpdDto): Promise<OpdEncounter> {
     const today = new Date().toISOString().split('T')[0];
     const visitDate = dto.visitDate ?? today;
@@ -142,6 +153,43 @@ export class OpdService {
     const encounter = await this.findOne(tenantId, id);
     Object.assign(encounter, dto);
     return this.repo.save(encounter);
+  }
+
+  async crossConsultation(
+    tenantId: string,
+    currentEncounterId: string,
+    dto: CrossConsultationDto,
+  ): Promise<OpdEncounter> {
+    const currentEncounter = await this.findOne(tenantId, currentEncounterId);
+
+    // Update current encounter
+    currentEncounter.status = OpdStatus.REFERRED;
+    currentEncounter.referredToDoctorId = dto.targetDoctorId;
+    currentEncounter.referredToDoctorName = dto.targetDoctorName;
+    await this.repo.save(currentEncounter);
+
+    // Create new encounter for the target doctor
+    const today = new Date().toISOString().split('T')[0];
+    const countToday = await this.repo.count({
+      where: { tenantId, visitDate: today, isActive: true },
+    });
+    const tokenNumber = `T-${countToday + 1}`;
+
+    const newEncounter = this.repo.create({
+      tenantId,
+      patientId: currentEncounter.patientId,
+      doctorId: dto.targetDoctorId,
+      doctorName: dto.targetDoctorName,
+      visitDate: today,
+      tokenNumber,
+      parentEncounterId: currentEncounterId,
+      referringDepartment: dto.targetDepartment,
+      consultationType: OpdConsultationType.CROSS_CONSULTATION,
+      status: OpdStatus.PENDING,
+      chiefComplaints: dto.reason ? `Referred for: ${dto.reason}` : '',
+    });
+
+    return this.repo.save(newEncounter);
   }
 
   async remove(tenantId: string, id: string): Promise<{ message: string }> {

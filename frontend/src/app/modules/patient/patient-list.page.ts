@@ -371,6 +371,10 @@ import { PatientApiService } from '../../core/services/patient-api.service';
                 <b>Pharmacy</b>
                 <span>Dispense & billing</span>
               </button>
+              <button type="button" class="service" (click)="goService('home_collection', selectedForBill())">
+                <b>Home Collection</b>
+                <span>Schedule sample pickup</span>
+              </button>
             </div>
           </div>
         </div>
@@ -556,6 +560,8 @@ export class PatientListPage implements OnInit {
       this.router.navigate(['/laboratory/order/new'], { queryParams: { patientId: p.id, uhid: p.uhid } });
     } else if (serviceKey === 'pharmacy') {
       this.router.navigate(['/pharmacy/sale/new'], { queryParams: { patientId: p.id, uhid: p.uhid, patientName: p.firstName + ' ' + p.lastName } });
+    } else if (serviceKey === 'home_collection') {
+      this.router.navigate(['/registration/home-collection/collections'], { queryParams: { action: 'new', patientId: p.id, uhid: p.uhid, patientName: p.firstName + ' ' + p.lastName } });
     } else {
       this.router.navigate(['/registration/appointments/list'], { queryParams: { action: 'new', patientId: p.id, uhid: p.uhid, patientName: p.firstName + ' ' + p.lastName } });
     }

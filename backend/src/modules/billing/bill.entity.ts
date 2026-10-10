@@ -24,6 +24,14 @@ export enum BillItemCategory {
   OTHER = 'OTHER',
 }
 
+export enum ClaimStatus {
+  UNBILLED = 'UNBILLED',
+  SUBMITTED = 'SUBMITTED',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  SETTLED = 'SETTLED',
+}
+
 export interface BillItem {
   description: string;
   category: BillItemCategory;
@@ -98,6 +106,17 @@ export class Bill {
     default: BillStatus.DRAFT,
   })
   status: BillStatus;
+
+  // Credit & Claims
+  @Column({ nullable: true })
+  sponsorName: string;
+
+  @Column({
+    type: 'enum',
+    enum: ClaimStatus,
+    nullable: true,
+  })
+  claimStatus: ClaimStatus;
 
   @Column({ nullable: true })
   encounterId: string;

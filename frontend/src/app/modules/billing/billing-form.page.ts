@@ -569,6 +569,22 @@ type ItemCategory = 'CONSULTATION' | 'LAB' | 'PHARMACY' | 'PROCEDURE' | 'BED' | 
                       }
                     </select>
                   </div>
+                  
+                  <div class="form-field">
+                    <label class="form-label">Sponsor (Corporate/Insurance)</label>
+                    <input class="form-control" type="text" formControlName="sponsorName" placeholder="e.g. Tata Motors" />
+                  </div>
+                  <div class="form-field">
+                    <label class="form-label">Claim Status</label>
+                    <select class="form-control" formControlName="claimStatus">
+                      <option [ngValue]="null">Not Applicable</option>
+                      <option value="UNBILLED">Unbilled</option>
+                      <option value="SUBMITTED">Submitted</option>
+                      <option value="APPROVED">Approved</option>
+                      <option value="REJECTED">Rejected</option>
+                      <option value="SETTLED">Settled</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -814,6 +830,8 @@ export class BillingFormPage implements OnInit {
     organizationId: [null],
     concessionReason: [''],
     concessionPercentage: [null],
+    sponsorName: [''],
+    claimStatus: [null],
     items: this.fb.array([]),
   });
 
@@ -833,6 +851,10 @@ export class BillingFormPage implements OnInit {
       this.loadBill(id);
     } else {
       this.addRow();
+      const patientId = this.route.snapshot.queryParamMap.get('patientId');
+      if (patientId) {
+        this.form.patchValue({ patientId });
+      }
     }
   }
 
@@ -849,6 +871,8 @@ export class BillingFormPage implements OnInit {
           organizationId: bill.organizationId ?? null,
           concessionReason: bill.concessionReason ?? '',
           concessionPercentage: bill.concessionPercentage ?? null,
+          sponsorName: bill.sponsorName ?? '',
+          claimStatus: bill.claimStatus ?? null,
         });
         if (bill.organizationId) {
           this.orgApi.getRates(bill.organizationId).subscribe(rates => {
@@ -1054,6 +1078,8 @@ export class BillingFormPage implements OnInit {
       organizationId: formValue.organizationId,
       concessionReason: formValue.concessionReason,
       concessionPercentage: formValue.concessionPercentage,
+      sponsorName: formValue.sponsorName,
+      claimStatus: formValue.claimStatus,
       items: items,
     };
 

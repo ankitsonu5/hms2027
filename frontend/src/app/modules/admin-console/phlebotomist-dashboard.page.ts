@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { PhlebotomistApiService, PhlebotomistModel } from '../../core/services/phlebotomist-api.service';
+import { HomeCollectionService } from '../../core/services/home-collection.service';
 
 interface SamplePickupTask {
   id: string;
@@ -643,20 +644,34 @@ interface SamplePickupTask {
               <!-- Today's Home Collection Assignments -->
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                 <h3 style="font-size: 15px; font-weight: 700; color: #0f172a; margin: 0;">
-                  Today's Patient Sample Pickups ({{ sampleTasks.length }})
+                  Today's Patient Sample Pickups ({{ sampleTasks().length }})
                 </h3>
-                @if (sampleTasks.length > 0) {
+                @if (sampleTasks().length > 0) {
                   <span class="status-badge on_field">Live Route</span>
                 }
               </div>
 
-              @if (sampleTasks.length === 0) {
+              <!-- Assign Patient Feature -->
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                <div style="font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 8px;">Assign Patient / Collection</div>
+                <div style="display: flex; gap: 8px;">
+                  <select class="filter-select" style="flex: 1;" [(ngModel)]="selectedCollectionToAssign">
+                    <option value="">-- Select Patient to Assign --</option>
+                    @for (col of availableCollections(); track col.id) {
+                      <option [value]="col.id">{{ col.patientName }} ({{ col.id }}) - {{ col.date }}</option>
+                    }
+                  </select>
+                  <button class="btn btn-primary btn-sm" (click)="assignCollectionToPhlebo()" [disabled]="!selectedCollectionToAssign">Assign</button>
+                </div>
+              </div>
+
+              @if (sampleTasks().length === 0) {
                 <div style="text-align: center; padding: 32px 16px; color: #94a3b8; font-size: 13px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px;">
                   No active sample collection pickups assigned to this phlebotomist today.
                 </div>
               }
 
-              @for (task of sampleTasks; track task.id) {
+              @for (task of sampleTasks(); track task.id) {
                 <div class="task-card">
                   <div class="task-header">
                     <div>
@@ -700,6 +715,7 @@ interface SamplePickupTask {
 })
 export class PhlebotomistDashboardPage implements OnInit {
   private api = inject(PhlebotomistApiService);
+  private collectionService = inject(HomeCollectionService);
 
   phlebotomists = signal<PhlebotomistModel[]>([]);
   loading = signal(false);
@@ -709,7 +725,29 @@ export class PhlebotomistDashboardPage implements OnInit {
   selectedStatus = '';
 
   selectedPhlebo = signal<PhlebotomistModel | null>(null);
-  sampleTasks: SamplePickupTask[] = [];
+  selectedCollectionToAssign = '';
+
+  availableCollections = computed(() => {
+    return this.collectionService.collections().filter(c => c.status !== 'CANCELLED' && c.status !== 'DELIVERED_TO_LAB');
+  });
+
+  sampleTasks = computed(() => {
+    const ph = this.selectedPhlebo();
+    if (!ph) return [];
+    return this.collectionService.collections()
+      .filter(c => c.phlebotomistId === ph.id)
+      .map(c => ({
+        id: c.id,
+        patientName: c.patientName,
+        patientAgeGender: `${c.age} Yrs, ${c.gender}`,
+        patientPhone: c.mobileNumber,
+        address: c.address,
+        scheduledTime: `${c.date} | ${c.timeSlot}`,
+        tests: c.tests.join(', '),
+        tubesRequired: c.tubesRequired.join(', '),
+        status: c.status as SamplePickupTask['status']
+      }));
+  });
 
   filteredPhlebotomists = computed(() => {
     let list = this.phlebotomists();
@@ -780,7 +818,23 @@ export class PhlebotomistDashboardPage implements OnInit {
   }
 
   viewPickups(ph: PhlebotomistModel) {
+    this.selectedCollectionToAssign = '';
     this.selectedPhlebo.set(ph);
+  }
+
+  assignCollectionToPhlebo() {
+    const ph = this.selectedPhlebo();
+    if (!ph || !this.selectedCollectionToAssign) return;
+    
+    this.collectionService.updateCollection(this.selectedCollectionToAssign, {
+      phlebotomistId: ph.id,
+      phlebotomistName: ph.name,
+      phlebotomistPhone: ph.phone,
+      phlebotomistVehicle: ph.vehicleType ? `${ph.vehicleType} (${ph.vehicleNumber || ''})` : undefined,
+      status: 'ASSIGNED'
+    });
+    
+    this.selectedCollectionToAssign = '';
   }
 
   closeDrawer() {

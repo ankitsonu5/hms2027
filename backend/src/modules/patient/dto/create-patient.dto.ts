@@ -84,6 +84,14 @@ export class CreatePatientDto {
   @IsString()
   policyNumber?: string;
 
+  // Credit System
+  @IsOptional()
+  @IsString()
+  sponsorName?: string;
+
+  @IsOptional()
+  creditLimit?: number;
+
   // Compliance flags
   @IsOptional()
   @IsBoolean()

@@ -12,6 +12,7 @@ export enum PatientCategory {
   B2B_REFERRAL = 'B2B_REFERRAL',
   CORPORATE = 'CORPORATE',
   INSURANCE = 'INSURANCE',
+  GOVERNMENT_SCHEME = 'GOVERNMENT_SCHEME',
 }
 
 export enum Gender {
@@ -113,6 +114,13 @@ export class Patient {
 
   @Column({ nullable: true })
   policyNumber: string;
+
+  // Credit System
+  @Column({ nullable: true })
+  sponsorName: string;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  creditLimit: number;
 
   // Government compliance flags
   @Column({ default: false })

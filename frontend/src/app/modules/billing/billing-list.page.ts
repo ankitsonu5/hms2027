@@ -388,6 +388,7 @@ interface Bill {
         <div class="tabs">
           <div class="tab" [class.active]="activeTab() === 'ALL'" (click)="setActiveTab('ALL')">All Bills</div>
           <div class="tab" [class.active]="activeTab() === 'SETTLEMENTS'" (click)="setActiveTab('SETTLEMENTS')">Bill Settlements</div>
+          <div class="tab" [class.active]="activeTab() === 'CREDIT'" (click)="setActiveTab('CREDIT')">Credit Outstanding</div>
           <div class="tab" (click)="goNew()">Add Test To Bill</div>
         </div>
 
@@ -431,133 +432,167 @@ interface Bill {
           <div class="loading">Loading bills…</div>
         } @else {
           <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Bill Id</th>
-                  <th>Patient Details</th>
-                  <th>Referral</th>
-                  <th>Department</th>
-                  <th>Bill Date</th>
-                  <th>Bill Amount</th>
-                  <th>Due</th>
-                  <th>Bill Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                @if (bills().length === 0) {
+            @if (activeTab() !== 'CREDIT') {
+              <table>
+                <thead>
                   <tr>
-                    <td colspan="8">
-                      <div class="empty-state">No bills found.</div>
-                    </td>
+                    <th>Bill Id</th>
+                    <th>Patient Details</th>
+                    <th>Referral</th>
+                    <th>Department</th>
+                    <th>Bill Date</th>
+                    <th>Bill Amount</th>
+                    <th>Due</th>
+                    <th>Bill Status</th>
                   </tr>
-                }
-                @for (bill of bills(); track bill.id) {
-                  <tr [class.expanded]="expandedId() === bill.id" (click)="togglePayment(bill)" style="cursor: pointer;">
-                    <td>
-                      <span class="bill-no">{{ bill.billNumber || bill.id }}</span>
-                    </td>
-                    <td>
-                      <div class="patient-name">{{ bill.patientName }}</div>
-                    </td>
-                    <td>—</td>
-                    <td>{{ getDepartments(bill) }}</td>
-                    <td>{{ bill.billDate | date: 'E MMM dd yyyy' }}</td>
-                    <td class="amount amount-grand">{{ bill.grandTotal | number: '1.2-2' }}</td>
-                    <td class="amount">{{ bill.balanceAmount | number: '1.2-2' }}</td>
-                    <td>
-                      @if (isUpdated(bill)) {
-                        <span class="badge badge-info" style="margin-right: 4px;">Updated</span>
-                      }
-                      <span class="badge" [class]="badgeClass(bill.status)">{{ (bill.status === 'PAID' ? 'Complete' : 'Pending') }}</span>
-                    </td>
-                  </tr>
-                  @if (expandedId() === bill.id) {
-                    <tr class="payment-row">
+                </thead>
+                <tbody>
+                  @if (bills().length === 0) {
+                    <tr>
                       <td colspan="8">
-                        @if (bill.status === 'PAID') {
-                          <div class="payment-panel">
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                              <div>
-                                <div class="payment-panel-title">Invoice Details</div>
-                                <p style="margin:4px 0; font-size:13px; color:var(--text-secondary);"><strong>Bill No:</strong> {{ bill.billNumber || bill.id }} &nbsp;|&nbsp; <strong>Date:</strong> {{ bill.billDate | date:'mediumDate' }}</p>
-                                <p style="margin:4px 0; font-size:13px; color:var(--text-secondary);"><strong>Total Paid:</strong> ₹{{ bill.paidAmount | number:'1.2-2' }}</p>
-                              </div>
-                              <button class="btn btn-primary" (click)="doPrintInvoice(bill)">
-                                Print Invoice
-                              </button>
-                            </div>
-                          </div>
-                        } @else {
-                          <div class="payment-panel">
-                            <div class="payment-panel-title">Add Payment — {{ bill.billNumber || bill.id }}</div>
-                            <form
-                              class="payment-form"
-                              [formGroup]="paymentForm"
-                              (ngSubmit)="submitPayment(bill.id)"
-                            >
-                              <div class="form-field">
-                                <label class="form-label">Payment Mode</label>
-                                <select class="form-control" formControlName="paymentMode">
-                                  <option value="CASH">Cash</option>
-                                  <option value="CARD">Card</option>
-                                  <option value="UPI">UPI</option>
-                                  <option value="INSURANCE">Insurance</option>
-                                  <option value="CGHS">CGHS</option>
-                                </select>
-                              </div>
-                              <div class="form-field">
-                                <label class="form-label">Amount (₹)</label>
-                                <input
-                                  class="form-control"
-                                  [class.invalid]="
-                                    paymentForm.controls['amount'].invalid &&
-                                    paymentForm.controls['amount'].touched
-                                  "
-                                  type="number"
-                                  min="0.01"
-                                  step="0.01"
-                                  formControlName="amount"
-                                  placeholder="0.00"
-                                  style="width:120px"
-                                />
-                              </div>
-                              <div class="form-field">
-                                <label class="form-label">Transaction Ref (optional)</label>
-                                <input
-                                  class="form-control"
-                                  type="text"
-                                  formControlName="transactionRef"
-                                  placeholder="Ref / UTR"
-                                  style="width:180px"
-                                />
-                              </div>
-                              <div class="form-field">
-                                <label class="form-label">&nbsp;</label>
-                                <button
-                                  class="btn btn-primary"
-                                  type="submit"
-                                  [disabled]="paymentSubmitting() || paymentForm.invalid"
-                                >
-                                  {{ paymentSubmitting() ? 'Saving…' : 'Submit Payment' }}
-                                </button>
-                              </div>
-                              @if (paymentError()) {
-                                <div
-                                  style="color:var(--clr-danger-600);font-size:var(--text-xs);align-self:center"
-                                >
-                                  {{ paymentError() }}
-                                </div>
-                              }
-                            </form>
-                          </div>
-                        }
+                        <div class="empty-state">No bills found.</div>
                       </td>
                     </tr>
                   }
-                }
-              </tbody>
-            </table>
+                  @for (bill of bills(); track bill.id) {
+                    <tr [class.expanded]="expandedId() === bill.id" (click)="togglePayment(bill)" style="cursor: pointer;">
+                      <td>
+                        <span class="bill-no">{{ bill.billNumber || bill.id }}</span>
+                      </td>
+                      <td>
+                        <div class="patient-name">{{ bill.patientName }}</div>
+                      </td>
+                      <td>—</td>
+                      <td>{{ getDepartments(bill) }}</td>
+                      <td>{{ bill.billDate | date: 'E MMM dd yyyy' }}</td>
+                      <td class="amount amount-grand">{{ bill.grandTotal | number: '1.2-2' }}</td>
+                      <td class="amount">{{ bill.balanceAmount | number: '1.2-2' }}</td>
+                      <td>
+                        @if (isUpdated(bill)) {
+                          <span class="badge badge-info" style="margin-right: 4px;">Updated</span>
+                        }
+                        <span class="badge" [class]="badgeClass(bill.status)">{{ (bill.status === 'PAID' ? 'Complete' : 'Pending') }}</span>
+                      </td>
+                    </tr>
+                    @if (expandedId() === bill.id) {
+                      <tr class="payment-row">
+                        <td colspan="8">
+                          @if (bill.status === 'PAID') {
+                            <div class="payment-panel">
+                              <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <div>
+                                  <div class="payment-panel-title">Invoice Details</div>
+                                  <p style="margin:4px 0; font-size:13px; color:var(--text-secondary);"><strong>Bill No:</strong> {{ bill.billNumber || bill.id }} &nbsp;|&nbsp; <strong>Date:</strong> {{ bill.billDate | date:'mediumDate' }}</p>
+                                  <p style="margin:4px 0; font-size:13px; color:var(--text-secondary);"><strong>Total Paid:</strong> ₹{{ bill.paidAmount | number:'1.2-2' }}</p>
+                                </div>
+                                <button class="btn btn-primary" (click)="doPrintInvoice(bill)">
+                                  Print Invoice
+                                </button>
+                              </div>
+                            </div>
+                          } @else {
+                            <div class="payment-panel">
+                              <div class="payment-panel-title">Add Payment — {{ bill.billNumber || bill.id }}</div>
+                              <form
+                                class="payment-form"
+                                [formGroup]="paymentForm"
+                                (ngSubmit)="submitPayment(bill.id)"
+                              >
+                                <div class="form-field">
+                                  <label class="form-label">Payment Mode</label>
+                                  <select class="form-control" formControlName="paymentMode">
+                                    <option value="CASH">Cash</option>
+                                    <option value="CARD">Card</option>
+                                    <option value="UPI">UPI</option>
+                                    <option value="INSURANCE">Insurance</option>
+                                    <option value="CGHS">CGHS</option>
+                                  </select>
+                                </div>
+                                <div class="form-field">
+                                  <label class="form-label">Amount (₹)</label>
+                                  <input
+                                    class="form-control"
+                                    [class.invalid]="
+                                      paymentForm.controls['amount'].invalid &&
+                                      paymentForm.controls['amount'].touched
+                                    "
+                                    type="number"
+                                    min="0.01"
+                                    step="0.01"
+                                    formControlName="amount"
+                                    placeholder="0.00"
+                                    style="width:120px"
+                                  />
+                                </div>
+                                <div class="form-field">
+                                  <label class="form-label">Transaction Ref (optional)</label>
+                                  <input
+                                    class="form-control"
+                                    type="text"
+                                    formControlName="transactionRef"
+                                    placeholder="Ref / UTR"
+                                    style="width:180px"
+                                  />
+                                </div>
+                                <div class="form-field">
+                                  <label class="form-label">&nbsp;</label>
+                                  <button
+                                    class="btn btn-primary"
+                                    type="submit"
+                                    [disabled]="paymentSubmitting() || paymentForm.invalid"
+                                  >
+                                    {{ paymentSubmitting() ? 'Saving…' : 'Submit Payment' }}
+                                  </button>
+                                </div>
+                                @if (paymentError()) {
+                                  <div
+                                    style="color:var(--clr-danger-600);font-size:var(--text-xs);align-self:center"
+                                  >
+                                    {{ paymentError() }}
+                                  </div>
+                                }
+                              </form>
+                            </div>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            } @else {
+              <table>
+                <thead>
+                  <tr>
+                    <th>Sponsor Name</th>
+                    <th>Unbilled Amount</th>
+                    <th>Submitted Amount</th>
+                    <th>Approved Amount</th>
+                    <th>Rejected Amount</th>
+                    <th>Settled Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @if (creditReports().length === 0) {
+                    <tr>
+                      <td colspan="6">
+                        <div class="empty-state">No credit outstanding records found.</div>
+                      </td>
+                    </tr>
+                  }
+                  @for (report of creditReports(); track report.sponsorName) {
+                    <tr>
+                      <td><strong>{{ report.sponsorName || 'Unknown Sponsor' }}</strong></td>
+                      <td class="amount text-warning">₹{{ report.unbilledAmount | number: '1.2-2' }}</td>
+                      <td class="amount text-info">₹{{ report.submittedAmount | number: '1.2-2' }}</td>
+                      <td class="amount text-success">₹{{ report.approvedAmount | number: '1.2-2' }}</td>
+                      <td class="amount text-danger">₹{{ report.rejectedAmount | number: '1.2-2' }}</td>
+                      <td class="amount text-primary">₹{{ report.settledAmount | number: '1.2-2' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
           </div>
         }
       </div>
@@ -569,8 +604,9 @@ export class BillingListPage implements OnInit {
   private router = inject(Router);
   private fb = inject(FormBuilder);
 
-  activeTab = signal<'ALL' | 'SETTLEMENTS'>('SETTLEMENTS');
+  activeTab = signal<'ALL' | 'SETTLEMENTS' | 'CREDIT'>('SETTLEMENTS');
   bills = signal<Bill[]>([]);
+  creditReports = signal<any[]>([]);
   loading = signal(false);
   errorMsg = signal('');
   cancelling = signal<string | number | null>(null);
@@ -633,15 +669,32 @@ export class BillingListPage implements OnInit {
     this.load();
   }
 
-  setActiveTab(tab: 'ALL' | 'SETTLEMENTS') {
+  setActiveTab(tab: 'ALL' | 'SETTLEMENTS' | 'CREDIT') {
     this.activeTab.set(tab);
     if (tab === 'SETTLEMENTS') {
-      // User wants completed/settled bills here
       this.filterForm.patchValue({ status: 'PAID' }, { emitEvent: false });
+      this.load();
+    } else if (tab === 'CREDIT') {
+      this.loadCreditOutstanding();
     } else {
       this.filterForm.patchValue({ status: '' }, { emitEvent: false });
+      this.load();
     }
-    this.load();
+  }
+
+  loadCreditOutstanding() {
+    this.loading.set(true);
+    this.errorMsg.set('');
+    this.api.getCreditOutstanding().subscribe({
+      next: (res) => {
+        this.creditReports.set(res || []);
+        this.loading.set(false);
+      },
+      error: (err) => {
+        this.errorMsg.set('Failed to load credit outstanding.');
+        this.loading.set(false);
+      }
+    });
   }
 
   load() {

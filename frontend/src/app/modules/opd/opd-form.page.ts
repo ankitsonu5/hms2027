@@ -308,6 +308,17 @@ import { PatientPickerComponent } from '../../shared/components/patient-picker.c
 
           <!-- Form Actions -->
           <div class="form-actions">
+            @if (isEdit) {
+              <button
+                type="button"
+                class="btn btn-outline"
+                style="margin-right: auto; color: var(--clr-neutral-700); border-color: var(--border-default);"
+                (click)="showReferralModal.set(true)"
+              >
+                Refer to Colleague
+              </button>
+            }
+
             <button type="button" class="btn btn-ghost" (click)="cancel()">Cancel</button>
             <button
               type="button"
@@ -322,6 +333,45 @@ import { PatientPickerComponent } from '../../shared/components/patient-picker.c
             </button>
           </div>
         </form>
+
+        <!-- Referral Modal -->
+        @if (showReferralModal()) {
+          <div class="modal-backdrop">
+            <div class="modal-dialog">
+              <div class="modal-header">
+                <h3>Refer for Cross Consultation</h3>
+                <button type="button" class="btn-close" (click)="showReferralModal.set(false)">&times;</button>
+              </div>
+              <div class="modal-body" [formGroup]="referralForm">
+                <div class="field">
+                  <label class="field-label">Target Doctor Name *</label>
+                  <input type="text" formControlName="targetDoctorName" class="form-control" placeholder="Dr. Name">
+                </div>
+                <div class="field" style="margin-top: 12px;">
+                  <label class="field-label">Target Department *</label>
+                  <select formControlName="targetDepartment" class="form-control">
+                    <option value="">Select Department</option>
+                    <option value="CARDIOLOGY">Cardiology</option>
+                    <option value="ORTHOPEDICS">Orthopedics</option>
+                    <option value="NEUROLOGY">Neurology</option>
+                    <option value="PEDIATRICS">Pediatrics</option>
+                    <option value="GENERAL_MEDICINE">General Medicine</option>
+                  </select>
+                </div>
+                <div class="field" style="margin-top: 12px;">
+                  <label class="field-label">Reason for Referral</label>
+                  <textarea formControlName="reason" class="form-control form-control--textarea" rows="3"></textarea>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" (click)="showReferralModal.set(false)">Cancel</button>
+                <button type="button" class="btn btn-primary" [disabled]="referralForm.invalid || referring()" (click)="submitReferral()">
+                  {{ referring() ? 'Referring...' : 'Confirm Referral' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        }
       }
     </div>
   `,
@@ -629,6 +679,33 @@ import { PatientPickerComponent } from '../../shared/components/patient-picker.c
           flex-wrap: wrap;
         }
       }
+      /* Modal Styles */
+      .modal-backdrop {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 1000;
+      }
+      .modal-dialog {
+        background: var(--bg-surface);
+        border-radius: var(--radius-lg);
+        width: 100%; max-width: 500px;
+        box-shadow: var(--shadow-lg);
+      }
+      .modal-header {
+        padding: var(--sp-4) var(--sp-5);
+        border-bottom: 1px solid var(--border-default);
+        display: flex; justify-content: space-between; align-items: center;
+      }
+      .modal-header h3 { margin: 0; font-size: var(--text-lg); font-weight: var(--fw-bold); }
+      .btn-close { background: transparent; border: none; font-size: 24px; cursor: pointer; color: var(--clr-neutral-500); }
+      .modal-body { padding: var(--sp-5); }
+      .modal-footer {
+        padding: var(--sp-4) var(--sp-5);
+        border-top: 1px solid var(--border-default);
+        display: flex; justify-content: flex-end; gap: var(--sp-3);
+      }
     `,
   ],
 })
@@ -667,6 +744,15 @@ export class OpdFormPage implements OnInit {
   get labOrders(): FormArray {
     return this.form.get('labOrders') as FormArray;
   }
+
+  showReferralModal = signal(false);
+  referring = signal(false);
+  referralForm = this.fb.group({
+    targetDoctorId: ['DOC-TMP'], // Auto-generated for demo purposes
+    targetDoctorName: ['', Validators.required],
+    targetDepartment: ['', Validators.required],
+    reason: [''],
+  });
 
   ngOnInit(): void {
     this.encounterId = this.route.snapshot.paramMap.get('id');
@@ -774,6 +860,24 @@ export class OpdFormPage implements OnInit {
       error: () => {
         this.saving.set(false);
       },
+    });
+  }
+
+  submitReferral(): void {
+    if (this.referralForm.invalid || !this.encounterId) return;
+    this.referring.set(true);
+    const payload = this.referralForm.value;
+    
+    this.api.crossConsultation(this.encounterId, payload).subscribe({
+      next: () => {
+        this.referring.set(false);
+        this.showReferralModal.set(false);
+        // Navigate back to OPD list since this encounter is now marked as REFERRED
+        this.router.navigate(['/opd']);
+      },
+      error: () => {
+        this.referring.set(false);
+      }
     });
   }
 

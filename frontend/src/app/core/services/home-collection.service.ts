@@ -100,23 +100,6 @@ export class HomeCollectionService {
       try {
         let parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          // Purge all dummy seed collections
-          parsed = parsed.filter(
-            (c: any) =>
-              c.id &&
-              !c.id.startsWith('HMC-2026-00101') &&
-              !c.id.startsWith('HMC-2026-00102') &&
-              !c.id.startsWith('HMC-2026-00103') &&
-              !c.id.startsWith('HMC-2026-00104') &&
-              !c.id.startsWith('HMC-2026-00105') &&
-              !c.id.startsWith('HMC-2026-00106') &&
-              c.patientName !== 'Ramesh Kumar' &&
-              c.patientName !== 'Sneha Patel' &&
-              c.patientName !== 'Vijay Deshmukh' &&
-              c.patientName !== 'Master Aarav Reddy' &&
-              c.patientName !== 'Kavita Sundaram' &&
-              c.patientName !== 'Anil Chawla'
-          );
           this.collections.set(parsed);
           this.saveToStorage(parsed);
           return;

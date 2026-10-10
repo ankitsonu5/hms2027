@@ -22,4 +22,7 @@ export class BillingApiService extends ApiService {
   cancel(id: string | number): Observable<any> {
     return this.del<any>(`billing/${id}`);
   }
+  getCreditOutstanding(): Observable<any[]> {
+    return this.get<any[]>('billing/reports/credit-outstanding');
+  }
 }

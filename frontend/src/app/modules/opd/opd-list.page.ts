@@ -12,6 +12,8 @@ interface OpdEncounter {
     uhid: string;
     firstName: string;
     lastName: string;
+    category?: string;
+    sponsorName?: string;
   } | null;
   doctorName: string;
   visitDate: string;
@@ -92,7 +94,14 @@ interface OpdEncounter {
                     <td>
                       @if (enc.patient; as p) {
                         <div class="patient-cell">
-                          <span class="patient-cell__name">{{ p.firstName }} {{ p.lastName }}</span>
+                          <div class="patient-name-row">
+                            <span class="patient-cell__name">{{ p.firstName }} {{ p.lastName }}</span>
+                            @if (p.category && p.category !== 'DIRECT') {
+                              <span class="type-badge type-badge--{{ p.category | lowercase }}">
+                                {{ p.sponsorName ? p.sponsorName : (p.category | lowercase) }}
+                              </span>
+                            }
+                          </div>
                           <span class="patient-cell__uhid monospace">{{ p.uhid }}</span>
                         </div>
                       } @else {
@@ -312,8 +321,26 @@ interface OpdEncounter {
       .patient-cell {
         display: flex;
         flex-direction: column;
-        gap: 1px;
+        gap: 2px;
       }
+      .patient-name-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .type-badge {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: var(--clr-primary-50);
+        color: var(--clr-primary-700);
+        border: 1px solid var(--clr-primary-200);
+      }
+      .type-badge--corporate { background: #e0f2fe; color: #0284c7; border-color: #bae6fd; }
+      .type-badge--insurance { background: #fce7f3; color: #db2777; border-color: #fbcfe8; }
+      .type-badge--government_scheme { background: #dcfce7; color: #16a34a; border-color: #bbf7d0; }
       .patient-cell__name {
         font-family: var(--font-body);
         font-size: var(--text-sm);

@@ -2,6 +2,9 @@ import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, ActivatedRoute, Router } from '@angular/router';
+import { OpdApiService } from '../../core/services/opd-api.service';
+import { PatientApiService } from '../../core/services/patient-api.service';
+import { BillingApiService } from '../../core/services/billing-api.service';
 
 export interface Doctor {
   id: string;
@@ -24,6 +27,8 @@ export interface Appointment {
   email?: string;
   address?: string;
   bloodGroup?: string;
+  category?: 'RETAIL' | 'CORPORATE' | 'INSURANCE' | 'GOVERNMENT_SCHEME' | 'B2B';
+  sponsorName?: string;
   // 2. Appointment Details
   date: string;
   time: string;
@@ -38,6 +43,11 @@ export interface Appointment {
   doctorName: string;
   doctorSpecialization: string;
   createdAt: string;
+  // 4. Referral / Cross Consultation
+  parentAppointmentId?: string;
+  referringDepartment?: string;
+  referringDoctorId?: string;
+  isCrossConsultation?: boolean;
 }
 
 const DOCTOR_CATALOG: Doctor[] = [
@@ -1357,7 +1367,19 @@ const INITIAL_APPOINTMENTS: Appointment[] = [];
                   </td>
 
                   <td>
-                    <div class="patient-name">{{ apt.patientName }}</div>
+                    <div class="patient-name">
+                      {{ apt.patientName }}
+                      @if (apt.category && apt.category !== 'RETAIL') {
+                        <span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #e0f2fe; color: #0284c7; margin-left: 6px; font-weight: 600; text-transform: uppercase;">
+                          {{ apt.category === 'GOVERNMENT_SCHEME' ? 'GOVT SCHEME' : apt.category }}
+                        </span>
+                      }
+                      @if (apt.sponsorName) {
+                        <span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #fef9c3; color: #a16207; margin-left: 4px; font-weight: 600; text-transform: uppercase;">
+                          {{ apt.sponsorName }}
+                        </span>
+                      }
+                    </div>
                     <div class="sub-info">
                       {{ apt.patientId }} · {{ apt.gender }}, {{ apt.age }}y · 📞 {{ apt.mobileNumber }}
                     </div>
@@ -1369,7 +1391,14 @@ const INITIAL_APPOINTMENTS: Appointment[] = [];
                   </td>
 
                   <td>
-                    <div><strong>{{ apt.type }}</strong> Visit</div>
+                    <div>
+                      <strong>{{ apt.type }}</strong> Visit
+                      @if (apt.parentAppointmentId) {
+                        <span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #f3e8ff; color: #7e22ce; margin-left: 6px; font-weight: 600;">
+                          Referred from {{ apt.referringDepartment }}
+                        </span>
+                      }
+                    </div>
                     <div class="sub-info" style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                       {{ apt.reason || 'General Consultation' }}
                     </div>
@@ -1596,6 +1625,30 @@ const INITIAL_APPOINTMENTS: Appointment[] = [];
                 </select>
               </div>
 
+              <div class="field">
+                <label>Patient Category</label>
+                <select class="form-select" [(ngModel)]="formCategory" name="category">
+                  <option value="RETAIL">Retail / Self-Pay</option>
+                  <option value="CORPORATE">Corporate</option>
+                  <option value="INSURANCE">Insurance</option>
+                  <option value="GOVERNMENT_SCHEME">Government Scheme</option>
+                  <option value="B2B">B2B</option>
+                </select>
+              </div>
+
+              @if (formCategory !== 'RETAIL') {
+                <div class="field">
+                  <label>Sponsor / TPA Name</label>
+                  <input
+                    type="text"
+                    class="form-input"
+                    placeholder="e.g. Tata Motors, Star Health"
+                    [(ngModel)]="formSponsorName"
+                    name="sponsorName"
+                  />
+                </div>
+              }
+
               <div class="field col-span-2">
                 <label>Address <span style="font-weight: normal; color: var(--text-secondary);">(optional)</span></label>
                 <input
@@ -1746,17 +1799,82 @@ const INITIAL_APPOINTMENTS: Appointment[] = [];
             }
           </div>
 
+          <!-- ── 4. CROSS CONSULTATION (INTERNAL REFERRAL) ─────────── -->
+          <div class="section-block">
+            <div class="section-header">
+              <span class="sec-badge">4</span>
+              <h2>Cross Consultation (Internal Referral)</h2>
+            </div>
+            <div class="form-grid">
+              <div class="field col-span-2" style="display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="isReferral" name="isReferral" [(ngModel)]="isCrossConsultation" class="form-checkbox" style="width: 16px; height: 16px; cursor: pointer;">
+                <label for="isReferral" style="margin: 0; font-weight: 600; cursor: pointer;">Patient referred by another internal doctor</label>
+              </div>
+              
+              @if (isCrossConsultation) {
+                <div class="field">
+                  <label>Referring Department</label>
+                  <select class="form-select" [(ngModel)]="referringDepartment" (change)="referringDoctorId = ''" name="referringDepartment">
+                    <option value="">-- Select Department --</option>
+                    <option value="Cardiology">Cardiology</option>
+                    <option value="Neurology">Neurology</option>
+                    <option value="Orthopedics">Orthopedics</option>
+                    <option value="General Medicine">General Medicine</option>
+                    <option value="Pediatrics">Pediatrics</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Referred By Doctor</label>
+                  <select class="form-select" [(ngModel)]="referringDoctorId" name="referringDoctor">
+                    <option value="">-- Select Doctor --</option>
+                    @for (doc of doctors; track doc.id) {
+                      @if (!referringDepartment || doc.department === referringDepartment) {
+                        <option [value]="doc.id">{{ doc.name }} ({{ doc.department }})</option>
+                      }
+                    }
+                  </select>
+                </div>
+              }
+            </div>
+          </div>
+
+          <div class="form-actions" style="justify-content: flex-end; padding: 12px 24px;">
+            <button type="button" class="btn btn-outline" (click)="addToQueue()" [disabled]="!selectedDoctorId">
+              + Add to Consultations Queue
+            </button>
+          </div>
+
+          @if (queuedConsultations().length > 0) {
+            <div class="section-block" style="background: #f0fdf4; border-color: #bbf7d0;">
+              <div class="section-header" style="background: transparent; border-bottom: 1px solid #bbf7d0;">
+                <span class="sec-badge" style="background: #16a34a;">📋</span>
+                <h2>Queued Consultations ({{queuedConsultations().length}})</h2>
+              </div>
+              <div class="detail-body" style="padding-top: 12px;">
+                @for (c of queuedConsultations(); track $index) {
+                  <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #fff; border-radius: 8px; border: 1px solid #dcfce7; margin-bottom: 8px;">
+                    <div>
+                      <div style="font-weight: 700; color: #166534;">{{ c.doctor.department }} Consult - {{ c.doctor.name }}</div>
+                      <div style="font-size: 12px; color: #15803d; margin-top: 4px;">{{ c.date }} at {{ c.time }} · Priority: {{ c.priority }}</div>
+                    </div>
+                    <button type="button" class="btn btn-ghost" style="color: #ef4444; padding: 4px;" (click)="removeFromQueue($index)">Remove</button>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
           <!-- Action Buttons -->
           <div class="form-actions">
             <button type="button" class="btn btn-outline" (click)="activeTab.set('list')">
               Cancel
             </button>
             <button
-              type="submit"
+              type="button"
               class="btn btn-primary"
-              [disabled]="!formPatientName || !formAge || !formMobile || !selectedDoctorId || !formDate || !formTime"
+              (click)="saveAppointment()"
             >
-              Confirm & Book Appointment
+              Confirm & Generate Consolidated Bill
             </button>
           </div>
         </form>
@@ -1931,6 +2049,14 @@ const INITIAL_APPOINTMENTS: Appointment[] = [];
                   <span class="info-k">Reason for Visit / Symptoms</span>
                   <span class="info-v italic-note">{{ apt.reason || 'Routine general medical consultation' }}</span>
                 </div>
+                @if (apt.isCrossConsultation) {
+                  <div class="info-item info-full">
+                    <span class="info-k">Cross Consultation / Internal Referral</span>
+                    <span class="info-v highlight" style="color: #ea580c; background: #ffedd5; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 4px;">
+                      Referred by Doctor ID: {{ apt.referringDoctorId || '—' }} ({{ apt.referringDepartment || '—' }})
+                    </span>
+                  </div>
+                }
               </div>
             </div>
 
@@ -1949,6 +2075,42 @@ const INITIAL_APPOINTMENTS: Appointment[] = [];
                     <span class="doc-chip">🆔 ID: {{ apt.doctorId }}</span>
                     <span class="doc-chip">🏢 Department: {{ apt.department }}</span>
                   </div>
+                </div>
+              </div>
+            </div>
+            <!-- Section 4: Patient Journey -->
+            <div class="detail-section">
+              <div class="section-badge-title">
+                <span class="step-num">4</span>
+                <span>Patient Journey / Linked Consultations</span>
+              </div>
+              <div class="info-grid">
+                <div class="info-item info-full">
+                  @if (getPatientJourney(apt.patientId).length > 0) {
+                    <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                      @for (visit of getPatientJourney(apt.patientId); track visit.id) {
+                        <div style="display: flex; align-items: flex-start; gap: 12px; padding: 12px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; position: relative;">
+                          @if (!$first) {
+                            <div style="position: absolute; top: -14px; left: 22px; width: 2px; height: 14px; background: #cbd5e1;"></div>
+                          }
+                          <div style="width: 24px; height: 24px; border-radius: 12px; background: #cbd5e1; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; font-weight: bold; flex-shrink: 0; z-index: 1;">
+                            {{ visit.id === apt.id ? '📍' : '✓' }}
+                          </div>
+                          <div>
+                            <div style="font-weight: 600; color: #334155; font-size: 13px;">{{ visit.department }} Consult ({{ visit.doctorName }})</div>
+                            <div style="font-size: 12px; color: #64748b; margin-top: 2px;">{{ visit.date }} {{ visit.time }}</div>
+                            @if (visit.parentAppointmentId) {
+                              <div style="font-size: 11px; color: #7e22ce; margin-top: 4px; background: #f3e8ff; padding: 2px 6px; border-radius: 4px; display: inline-block;">
+                                Referred from {{ visit.referringDepartment }}
+                              </div>
+                            }
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  } @else {
+                    <span class="info-v italic-note">No other consultations found for this patient.</span>
+                  }
                 </div>
               </div>
             </div>
@@ -1989,6 +2151,9 @@ const INITIAL_APPOINTMENTS: Appointment[] = [];
             </div>
 
             <div style="display: flex; gap: 8px;">
+              <button class="btn btn-outline btn-sm" (click)="openReferralModal(apt)">
+                Refer to Colleague
+              </button>
               <button class="btn btn-outline btn-sm" (click)="openSlip(apt)">
                 🖨️ Print Token Slip
               </button>
@@ -2000,11 +2165,62 @@ const INITIAL_APPOINTMENTS: Appointment[] = [];
         </div>
       </div>
     }
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- MODAL: CROSS CONSULTATION REFERRAL                              -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    @if (referringApt(); as rApt) {
+      <div class="modal-overlay" (click)="closeReferralModal()">
+        <div class="detail-card" (click)="$event.stopPropagation()">
+          <div class="detail-header">
+            <h2>Refer {{ rApt.patientName }} to Colleague</h2>
+            <button class="btn-close" (click)="closeReferralModal()">✕</button>
+          </div>
+          <div class="detail-body">
+            <div class="form-grid">
+              <div class="field col-span-2">
+                <label>Target Department <span class="req">*</span></label>
+                <select class="form-select" [(ngModel)]="referralDept" (change)="onReferralDeptChange()">
+                  <option value="">Select Department...</option>
+                  <option value="Cardiology">Cardiology</option>
+                  <option value="General Medicine">General Medicine</option>
+                  <option value="Orthopedics">Orthopedics</option>
+                  <option value="Pediatrics">Pediatrics</option>
+                  <option value="Gynecology & Obstetrics">Gynecology & Obstetrics</option>
+                  <option value="Dermatology">Dermatology</option>
+                  <option value="ENT">ENT</option>
+                </select>
+              </div>
+              <div class="field col-span-2">
+                <label>Target Doctor <span class="req">*</span></label>
+                <select class="form-select" [(ngModel)]="referralDoctorId">
+                  <option value="">Select Doctor...</option>
+                  @for (doc of availableReferralDoctors(); track doc.id) {
+                    <option [value]="doc.id">{{ doc.name }} ({{ doc.specialization }})</option>
+                  }
+                </select>
+              </div>
+              <div class="field col-span-2">
+                <label>Reason for Referral <span class="req">*</span></label>
+                <textarea class="form-input" rows="3" [(ngModel)]="referralReason"></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="detail-footer" style="justify-content: flex-end;">
+            <button class="btn btn-outline" (click)="closeReferralModal()">Cancel</button>
+            <button class="btn btn-primary" style="margin-left: 8px;" (click)="submitReferral()" [disabled]="!referralDept || !referralDoctorId || !referralReason">Confirm Referral</button>
+          </div>
+        </div>
+      </div>
+    }
   `,
 })
 export class AppointmentListPage implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private opdApi = inject(OpdApiService);
+  private patientApi = inject(PatientApiService);
+  private billingApi = inject(BillingApiService);
 
   doctors = DOCTOR_CATALOG;
   appointments = signal<Appointment[]>(INITIAL_APPOINTMENTS);
@@ -2169,6 +2385,8 @@ export class AppointmentListPage implements OnInit {
   formEmail = '';
   formAddress = '';
   formBloodGroup = '';
+  formCategory: 'RETAIL' | 'CORPORATE' | 'INSURANCE' | 'GOVERNMENT_SCHEME' | 'B2B' = 'RETAIL';
+  formSponsorName = '';
 
   formDate = new Date().toISOString().split('T')[0];
   formTime = '10:00 AM';
@@ -2179,15 +2397,23 @@ export class AppointmentListPage implements OnInit {
   selectedDoctorId = '';
   selectedDoctor = signal<Doctor | null>(null);
 
+  // Cross Consultation Fields (Form)
+  isCrossConsultation = false;
+  referringDepartment = '';
+  referringDoctorId = '';
+
+  queuedConsultations = signal<any[]>([]);
+
   // Active slip for printing
   activeSlip = signal<Appointment | null>(null);
+
+  registeredPatients = signal<any[]>([]);
 
   ngOnInit(): void {
     const saved = localStorage.getItem('hms_appointments');
     if (saved) {
       try {
         let parsed = JSON.parse(saved);
-        // Remove dummy appointments (any APT ID < 105)
         parsed = parsed.filter((a: any) => {
           if (!a.id) return true;
           const match = a.id.match(/APT-\d{4}-(\d+)/);
@@ -2204,6 +2430,13 @@ export class AppointmentListPage implements OnInit {
       }
     }
 
+    // Load registered patients from backend
+    this.patientApi.list().subscribe({
+      next: (res) => {
+        this.registeredPatients.set(res.data ?? []);
+      }
+    });
+
     this.route.queryParams.subscribe(params => {
       if (params['action'] === 'new' || params['uhid']) {
         this.activeTab.set('form');
@@ -2216,7 +2449,6 @@ export class AppointmentListPage implements OnInit {
           if (pat) {
             this.onSelectExistingPatient(uhid);
           } else {
-            // Patient not in local known list yet, just populate the form manually
             this.selectedExistingUhid.set(uhid);
             this.formPatientId.set(uhid);
             this.formPatientName = params['patientName'] || '';
@@ -2314,10 +2546,30 @@ export class AppointmentListPage implements OnInit {
       bloodGroup?: string;
     }>();
 
-    for (const p of this.knownPatients) {
-      map.set(p.uhid, p);
+    for (const p of this.registeredPatients()) {
+      let calculatedAge = 0;
+      if (p.dob) {
+        const diffMs = Date.now() - new Date(p.dob).getTime();
+        calculatedAge = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 365.25));
+      }
+
+      let mappedGender: 'Male' | 'Female' | 'Other' = 'Male';
+      if (p.gender?.toUpperCase() === 'FEMALE') mappedGender = 'Female';
+      else if (p.gender?.toUpperCase() === 'OTHER') mappedGender = 'Other';
+
+      map.set(p.uhid, {
+        uhid: p.uhid,
+        name: p.firstName + ' ' + (p.lastName || ''),
+        age: p.age ?? calculatedAge,
+        gender: mappedGender,
+        mobileNumber: p.mobileNumber || p.phone || '',
+        email: p.email,
+        address: p.address,
+        bloodGroup: p.bloodGroup,
+      });
     }
 
+    // Also include any mock patients from local appointments just in case
     for (const a of this.appointments()) {
       if (!map.has(a.patientId)) {
         map.set(a.patientId, {
@@ -2453,6 +2705,9 @@ export class AppointmentListPage implements OnInit {
     this.formReason = '';
     this.selectedDoctorId = '';
     this.selectedDoctor.set(null);
+    this.isCrossConsultation = false;
+    this.referringDepartment = '';
+    this.referringDoctorId = '';
     this.activeTab.set('form');
   }
 
@@ -2462,44 +2717,154 @@ export class AppointmentListPage implements OnInit {
     this.selectedDoctor.set(found);
   }
 
-  saveAppointment(): void {
-    if (!this.formPatientName || !this.formAge || !this.formMobile || !this.selectedDoctor()) {
-      return;
-    }
-
-    const doc = this.selectedDoctor()!;
-    const newApt: Appointment = {
-      id: this.formAppointmentId(),
-      tokenNo: this.appointments().length + 1,
-      patientId: this.formPatientId(),
-      patientName: this.formPatientName,
-      age: Number(this.formAge),
-      gender: this.formGender,
-      mobileNumber: this.formMobile,
-      email: this.formEmail || undefined,
-      address: this.formAddress || undefined,
-      bloodGroup: this.formBloodGroup || undefined,
+  addToQueue(): void {
+    if (!this.selectedDoctorId || !this.selectedDoctor()) return;
+    this.queuedConsultations.update(q => [...q, {
+      doctor: this.selectedDoctor()!,
       date: this.formDate,
       time: this.formTime,
       type: this.formType,
-      department: doc.department,
-      reason: this.formReason || undefined,
       priority: this.formPriority,
-      status: 'Confirmed',
-      paymentStatus: 'Paid',
-      doctorId: doc.id,
-      doctorName: doc.name,
-      doctorSpecialization: doc.specialization,
-      createdAt: new Date().toISOString(),
-    };
+      reason: this.formReason,
+      isCrossConsultation: this.isCrossConsultation,
+      referringDepartment: this.referringDepartment,
+      referringDoctorId: this.referringDoctorId
+    }]);
 
-    const updated = [newApt, ...this.appointments()];
+    // reset doctor selection
+    this.selectedDoctorId = '';
+    this.selectedDoctor.set(null);
+    this.isCrossConsultation = false;
+    this.referringDepartment = '';
+    this.referringDoctorId = '';
+    this.formReason = '';
+  }
+
+  removeFromQueue(index: number): void {
+    this.queuedConsultations.update(q => {
+      const copy = [...q];
+      copy.splice(index, 1);
+      return copy;
+    });
+  }
+
+  saveAppointment(): void {
+    if (this.selectedDoctorId) {
+      this.addToQueue();
+    }
+
+    if (this.queuedConsultations().length === 0) {
+      alert('Please add at least one consultation to the queue or select a doctor.');
+      return;
+    }
+
+    if (!this.formPatientName || !this.formAge || !this.formMobile) {
+      alert('Please fill out all required patient details (Name, Age, Mobile Number).');
+      return;
+    }
+
+    let nextTokenNo = this.appointments().length + 1;
+    const currentIdStr = this.formAppointmentId().split('-').pop() || '00105';
+    let nextAptNum = parseInt(currentIdStr, 10);
+
+    const newAppointments: Appointment[] = [];
+    
+    for (const item of this.queuedConsultations()) {
+      const aptId = `APT-2026-${String(nextAptNum++).padStart(5, '0')}`;
+      const doc = item.doctor;
+      const newApt: Appointment = {
+        id: aptId,
+        tokenNo: nextTokenNo++,
+        patientId: this.formPatientId(),
+        patientName: this.formPatientName,
+        age: Number(this.formAge),
+        gender: this.formGender,
+        mobileNumber: this.formMobile,
+        email: this.formEmail || undefined,
+        address: this.formAddress || undefined,
+        bloodGroup: this.formBloodGroup || undefined,
+        category: this.formCategory || 'RETAIL',
+        sponsorName: this.formSponsorName || undefined,
+        date: item.date,
+        time: item.time,
+        type: item.type,
+        department: doc.department,
+        reason: item.reason || undefined,
+        priority: item.priority,
+        status: 'Confirmed',
+        paymentStatus: 'Pending',
+        doctorId: doc.id,
+        doctorName: doc.name,
+        doctorSpecialization: doc.specialization,
+        createdAt: new Date().toISOString(),
+        isCrossConsultation: item.isCrossConsultation,
+        referringDepartment: item.isCrossConsultation ? item.referringDepartment : undefined,
+        referringDoctorId: item.isCrossConsultation ? item.referringDoctorId : undefined,
+      };
+      
+      newAppointments.push(newApt);
+
+      const backendPayload: any = {
+        patientId: this.formPatientId(),
+        doctorId: doc.id,
+        doctorName: doc.name,
+        visitDate: item.date,
+        tokenNumber: String(newApt.tokenNo),
+        chiefComplaints: item.reason,
+        status: 'PENDING'
+      };
+      if (item.isCrossConsultation && item.referringDoctorId) {
+        backendPayload.referredToDoctorId = doc.id;
+        backendPayload.referredToDoctorName = doc.name;
+      }
+
+      this.opdApi.create(backendPayload).subscribe({
+        next: () => console.log('Appointment synchronized to backend'),
+        error: (err) => console.error('Failed to sync appointment to backend:', err)
+      });
+    }
+
+    const updated = [...newAppointments.reverse(), ...this.appointments()];
     this.appointments.set(updated);
     localStorage.setItem('hms_appointments', JSON.stringify(updated));
 
-    // Show slip for the newly created appointment
-    this.activeSlip.set(newApt);
-    this.activeTab.set('list');
+    // Create a consolidated bill for all queued consultations
+    const billItems = this.queuedConsultations().map(item => ({
+      description: `${item.doctor.department} Consultation - ${item.doctor.name}`,
+      category: 'CONSULTATION',
+      quantity: 1,
+      unitPrice: 500, // standard consultation fee
+      discount: 0,
+      gst: 0
+    }));
+
+    const billPayload = {
+      patientId: this.formPatientId(),
+      patientName: this.formPatientName,
+      items: billItems,
+      status: 'DRAFT',
+      notes: 'Consolidated bill for multiple consultations'
+    };
+
+    this.billingApi.create(billPayload).subscribe({
+      next: (res) => {
+        console.log('Consolidated bill created successfully', res);
+        this.queuedConsultations.set([]);
+        this.activeTab.set('list');
+        // Navigate to the newly created bill in edit mode so they can process payment
+        if (res && res.id) {
+          this.router.navigate(['/billing', res.id]);
+        } else {
+          this.router.navigate(['/billing']);
+        }
+      },
+      error: (err) => {
+        console.error('Failed to create consolidated bill:', err);
+        this.queuedConsultations.set([]);
+        this.activeTab.set('list');
+        this.router.navigate(['/billing/new'], { queryParams: { patientId: this.formPatientId() } });
+      }
+    });
   }
 
   updateStatus(apt: Appointment, newStatus: Appointment['status']): void {
@@ -2539,5 +2904,84 @@ export class AppointmentListPage implements OnInit {
 
   closeDetails(): void {
     this.selectedAppointment.set(null);
+  }
+
+  getPatientJourney(patientId: string): Appointment[] {
+    return this.appointments().filter(a => a.patientId === patientId).sort((a, b) => {
+      // Sort older first for timeline
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+  }
+
+  // Cross Consultation Referral Logic
+  referringApt = signal<Appointment | null>(null);
+  referralDept = '';
+  referralDoctorId = '';
+  referralReason = '';
+
+  availableReferralDoctors = computed(() => {
+    return this.doctors.filter(d => d.department === this.referralDept);
+  });
+
+  openReferralModal(apt: Appointment) {
+    this.closeDetails();
+    this.referringApt.set(apt);
+    this.referralDept = '';
+    this.referralDoctorId = '';
+    this.referralReason = '';
+  }
+
+  closeReferralModal() {
+    this.referringApt.set(null);
+  }
+
+  onReferralDeptChange() {
+    this.referralDoctorId = '';
+  }
+
+  submitReferral() {
+    const rApt = this.referringApt();
+    if (!rApt) return;
+    
+    this.updateStatus(rApt, 'Completed'); // Or referred
+
+    const nextNum = this.appointments().length + 1;
+    const doc = this.doctors.find(d => d.id === this.referralDoctorId)!;
+
+    const newApt: Appointment = {
+      ...rApt,
+      id: `APT-2026-${String(nextNum + 100).padStart(5, '0')}`,
+      tokenNo: nextNum,
+      department: doc.department,
+      doctorId: doc.id,
+      doctorName: doc.name,
+      doctorSpecialization: doc.specialization,
+      reason: this.referralReason,
+      type: 'New',
+      status: 'Confirmed',
+      createdAt: new Date().toISOString(),
+      parentAppointmentId: rApt.id,
+      referringDepartment: rApt.department
+    };
+
+    const updated = [newApt, ...this.appointments()];
+    this.appointments.set(updated);
+    localStorage.setItem('hms_appointments', JSON.stringify(updated));
+
+    // Also sync the referral to backend so it shows in the dashboard and opd-list
+    this.opdApi.create({
+      patientId: newApt.patientId,
+      doctorId: newApt.doctorId,
+      doctorName: newApt.doctorName,
+      visitDate: newApt.date,
+      tokenNumber: String(newApt.tokenNo),
+      chiefComplaints: newApt.reason,
+      status: 'PENDING'
+    }).subscribe({
+      next: () => console.log('Referral synchronized to backend.'),
+      error: (err) => console.error('Failed to sync referral:', err)
+    });
+
+    this.closeReferralModal();
   }
 }

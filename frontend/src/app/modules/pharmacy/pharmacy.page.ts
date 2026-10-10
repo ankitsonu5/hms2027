@@ -742,7 +742,7 @@ type Schedule = 'GENERAL' | 'SCHEDULE_H' | 'SCHEDULE_H1' | 'SCHEDULE_X' | 'NARCO
                     </div>
                     <div class="form-field">
                       <label>GRN No</label>
-                      <input formControlName="grnNo" placeholder="e.g. GRN-001" />
+                      <input formControlName="grnNumber" placeholder="e.g. GRN-001" />
                     </div>
                   </div>
                   <div class="form-actions">
@@ -792,7 +792,7 @@ type Schedule = 'GENERAL' | 'SCHEDULE_H' | 'SCHEDULE_H1' | 'SCHEDULE_X' | 'NARCO
                         <td>{{ batch.quantity }}</td>
                         <td>₹{{ batch.mrp | number: '1.2-2' }}</td>
                         <td>₹{{ batch.purchaseRate | number: '1.2-2' }}</td>
-                        <td>{{ batch.grnNo || '—' }}</td>
+                        <td>{{ batch.grnNumber || '—' }}</td>
                       </tr>
                     }
                   }
@@ -954,7 +954,7 @@ export class PharmacyPage implements OnInit {
     purchaseRate: [null, [Validators.required, Validators.min(0)]],
     mrp: [null, [Validators.required, Validators.min(0)]],
     gstPercent: [0],
-    grnNo: [''],
+    grnNumber: [''],
   });
 
   ngOnInit(): void {
@@ -1092,7 +1092,11 @@ export class PharmacyPage implements OnInit {
         this.showBatchForm.set(false);
         this.batchForm.reset({ freeQuantity: 0, gstPercent: 0 });
       },
-      error: () => this.batchSaving.set(false),
+      error: (err) => {
+        this.batchSaving.set(false);
+        console.error('Batch save error:', err);
+        alert('Failed to save batch. Please check inputs.');
+      },
     });
   }
 

@@ -16,6 +16,7 @@ import { OpdService } from './opd.service';
 import { CreateOpdDto } from './dto/create-opd.dto';
 import { UpdateOpdDto } from './dto/update-opd.dto';
 import { QueryOpdDto } from './dto/query-opd.dto';
+import { CrossConsultationDto } from './dto/cross-consultation.dto';
 
 @ApiTags('OPD')
 @ApiBearerAuth()
@@ -38,6 +39,13 @@ export class OpdController {
     return this.opdService.findOne(tenantId, id);
   }
 
+  @ApiOperation({ summary: 'Get patient journey of encounters' })
+  @Get('patient-journey/:patientId')
+  getPatientJourney(@Request() req, @Param('patientId') patientId: string) {
+    const tenantId: string = req.user.tenantId;
+    return this.opdService.getPatientJourney(tenantId, patientId);
+  }
+
   @ApiOperation({ summary: 'Create a new OPD encounter' })
   @Post()
   create(@Request() req, @Body() dto: CreateOpdDto) {
@@ -50,6 +58,17 @@ export class OpdController {
   update(@Request() req, @Param('id') id: string, @Body() dto: UpdateOpdDto) {
     const tenantId: string = req.user.tenantId;
     return this.opdService.update(tenantId, id, dto);
+  }
+
+  @ApiOperation({ summary: 'Refer patient for cross-consultation' })
+  @Post(':id/cross-consultation')
+  crossConsultation(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() dto: CrossConsultationDto,
+  ) {
+    const tenantId: string = req.user.tenantId;
+    return this.opdService.crossConsultation(tenantId, id, dto);
   }
 
   @ApiOperation({ summary: 'Soft-delete an OPD encounter' })

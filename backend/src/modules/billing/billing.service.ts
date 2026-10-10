@@ -121,6 +121,22 @@ export class BillingService {
     return { data, total, page, limit };
   }
 
+  async getCreditOutstanding(tenantId: string) {
+    const qb = this.bills
+      .createQueryBuilder('bill')
+      .select('bill.sponsorName', 'sponsorName')
+      .addSelect('SUM(bill.balanceAmount)', 'totalOutstanding')
+      .addSelect('COUNT(bill.id)', 'billCount')
+      .where('bill.tenantId = :tenantId', { tenantId })
+      .andWhere('bill.isActive = true')
+      .andWhere('bill.balanceAmount > 0')
+      .andWhere('bill.sponsorName IS NOT NULL')
+      .groupBy('bill.sponsorName')
+      .orderBy('SUM(bill.balanceAmount)', 'DESC');
+
+    return qb.getRawMany();
+  }
+
   async findOne(tenantId: string, id: string): Promise<Bill> {
     const bill = await this.bills.findOne({
       where: { id, tenantId, isActive: true },
@@ -156,6 +172,8 @@ export class BillingService {
       organizationId: dto.organizationId,
       concessionReason: dto.concessionReason,
       concessionPercentage: dto.concessionPercentage,
+      sponsorName: dto.sponsorName,
+      claimStatus: dto.claimStatus as any,
       status: BillStatus.DRAFT,
     });
 
