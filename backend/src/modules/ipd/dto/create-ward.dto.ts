@@ -26,4 +26,9 @@ export class CreateWardDto {
   @Min(0)
   @Type(() => Number)
   totalBeds?: number;
+
+  @ApiPropertyOptional({ example: 500 })
+  @IsOptional()
+  @Type(() => Number)
+  dailyRate?: number;
 }

@@ -19,6 +19,8 @@ import { BillSettingsPage } from './bill-settings.page';
 import { InvoiceSettingsPage } from './invoice-settings.page';
 import { CancelledTestsPage } from './cancelled-tests.page';
 import { PendingReportsPage } from './pending-reports.page';
+import { DepartmentListPage } from './department-list.page';
+import { SmartReportSettingsPage } from './smart-report-settings.page';
 
 /** Menu paths that have a real page; everything else falls back to the placeholder. */
 const IMPLEMENTED: Record<string, any> = {
@@ -30,6 +32,8 @@ const IMPLEMENTED: Record<string, any> = {
   '/registration/billing-history/invoice': InvoicePage,
   '/test-profile-management/test-list': TestListPage,
   '/client-management': OrganizationListPage,
+  '/department/list': DepartmentListPage,
+  '/department': DepartmentListPage,
   '/registration/home-collection/collections': HomeCollectionListPage,
   '/registration/home-collection/calendar': HomeCollectionCalendarPage,
   '/registration/home-collection/phlebotomists': PhlebotomistListPage,
@@ -40,6 +44,7 @@ const IMPLEMENTED: Record<string, any> = {
   '/test-profile-management/invoice-settings': InvoiceSettingsPage,
   '/test-profile-management/cancelled-tests': CancelledTestsPage,
   '/registration/report-print/pending': PendingReportsPage,
+  '/smart-report-settings': SmartReportSettingsPage,
 };
 
 const strip = (p: string) => p.replace(/^\//, '');

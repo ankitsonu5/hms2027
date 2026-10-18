@@ -14,6 +14,7 @@ import { PharmacyModule } from './modules/pharmacy/pharmacy.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { OrganizationModule } from './modules/organization/organization.module';
 import { PhlebotomistModule } from './modules/phlebotomist/phlebotomist.module';
+import { DepartmentModule } from './modules/department/department.module';
 
 @Module({
   imports: [
@@ -48,8 +49,8 @@ import { PhlebotomistModule } from './modules/phlebotomist/phlebotomist.module';
     BillingModule,
     PharmacyModule,
     ReportsModule,
-    OrganizationModule,
     PhlebotomistModule,
+    DepartmentModule,
 
     // ── Serve Angular build ────────────────────────────────────────────────────
     ServeStaticModule.forRoot({
@@ -68,3 +69,5 @@ import { PhlebotomistModule } from './modules/phlebotomist/phlebotomist.module';
   ],
 })
 export class AppModule {}
+// reload trigger
+

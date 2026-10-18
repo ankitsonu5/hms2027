@@ -14,7 +14,7 @@ export class OrganizationService {
   ) {}
 
   async findAll(tenantId: string) {
-    return this.orgRepo.find({ where: { tenantId, isActive: true } });
+    return this.orgRepo.find({ where: { tenantId, isActive: true }, order: { name: 'ASC' } });
   }
 
   async findOne(tenantId: string, id: string) {

@@ -82,6 +82,18 @@ export class IpdAdmission {
   @Column({ type: 'decimal', default: 0 })
   depositAmount: number;
 
+  @Column({ type: 'jsonb', default: () => "'[]'::jsonb", nullable: true })
+  vitals: any[];
+
+  @Column({ type: 'jsonb', default: () => "'[]'::jsonb", nullable: true })
+  clinicalNotes: any[];
+
+  @Column({ type: 'text', nullable: true })
+  dischargeSummary: string;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  dischargeCondition: string;
+
   @Column({
     type: 'enum',
     enum: AdmissionStatus,

@@ -378,7 +378,7 @@ import { FormsModule } from '@angular/forms';
         </div>
 
         <div class="bill-title-row">
-          <div class="bill-title">Investigation Cash Receipt</div>
+          <div class="bill-title">{{ (order()?.paymentMethod === 'CREDIT' || (order()?.patientCategory && order()?.patientCategory !== 'DIRECT')) ? 'Investigation Credit / Sponsor Bill' : 'Investigation Cash Receipt' }}</div>
         </div>
 
         <!-- Patient Details Box -->
@@ -397,8 +397,12 @@ import { FormsModule } from '@angular/forms';
               <div class="field"><div class="label" style="text-transform: uppercase;">BILL ID</div><div class="sep">:</div><div class="value">{{ order()?.sampleBarcode || orderId()?.slice(0,8) }}</div></div>
               <div class="field"><div class="label" style="text-transform: uppercase;">UID</div><div class="sep">:</div><div class="value">{{ patient()?.id | slice:0:8 }}</div></div>
               <div class="field"><div class="label" style="text-transform: uppercase;">BILL DATE</div><div class="sep">:</div><div class="value">{{ (order()?.createdAt | date:'dd/MM/yy, hh:mm a') || '—' }}</div></div>
-              <div class="field"><div class="label" style="text-transform: uppercase;">ORGANISATION</div><div class="sep">:</div><div class="value">HMS Hospital</div></div>
-              <div class="field"><div class="label" style="text-transform: uppercase;">PAY TYPE</div><div class="sep">:</div><div class="value">{{ (order()?.paymentMethod || 'CASH')?.toUpperCase() }}</div></div>
+              <div class="field"><div class="label" style="text-transform: uppercase;">CATEGORY</div><div class="sep">:</div><div class="value">{{ order()?.patientCategory || patient()?.category || 'DIRECT' }}</div></div>
+              <div class="field"><div class="label" style="text-transform: uppercase;">SPONSOR</div><div class="sep">:</div><div class="value">{{ order()?.sponsorName || patient()?.sponsorName || patient()?.organization || 'Direct / Walk-in' }}</div></div>
+              @if (patient()?.policyNumber || patient()?.employeeId) {
+                <div class="field"><div class="label" style="text-transform: uppercase;">POLICY / EMP ID</div><div class="sep">:</div><div class="value">{{ patient()?.policyNumber || patient()?.employeeId }}</div></div>
+              }
+              <div class="field"><div class="label" style="text-transform: uppercase;">PAY TYPE</div><div class="sep">:</div><div class="value">{{ (order()?.paymentMethod || 'CASH')?.toUpperCase() }} {{ (order()?.paymentMethod === 'CREDIT' || (order()?.patientCategory && order()?.patientCategory !== 'DIRECT')) ? '(CREDIT / SPONSOR)' : '' }}</div></div>
             </div>
           </div>
         </div>

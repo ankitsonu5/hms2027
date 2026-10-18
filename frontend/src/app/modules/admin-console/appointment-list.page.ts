@@ -1587,7 +1587,7 @@ const INITIAL_APPOINTMENTS: Appointment[] = [];
               </div>
 
               <div class="field">
-                <label>Mobile Number <span class="req">*</span></label>
+                <label>Mobile Number <span class="req">*</span> (10 digits)</label>
                 <input
                   type="tel"
                   class="form-input"
@@ -1595,6 +1595,8 @@ const INITIAL_APPOINTMENTS: Appointment[] = [];
                   [(ngModel)]="formMobile"
                   name="mobile"
                   maxlength="10"
+                  pattern="[0-9]{10}"
+                  (input)="sanitizeMobile()"
                   required
                 />
               </div>
@@ -2711,6 +2713,12 @@ export class AppointmentListPage implements OnInit {
     this.activeTab.set('form');
   }
 
+  sanitizeMobile(): void {
+    if (this.formMobile) {
+      this.formMobile = this.formMobile.replace(/\D/g, '').slice(0, 10);
+    }
+  }
+
   onDoctorSelected(docId: string): void {
     this.selectedDoctorId = docId;
     const found = this.doctors.find((d) => d.id === docId) || null;
@@ -2760,6 +2768,12 @@ export class AppointmentListPage implements OnInit {
 
     if (!this.formPatientName || !this.formAge || !this.formMobile) {
       alert('Please fill out all required patient details (Name, Age, Mobile Number).');
+      return;
+    }
+
+    const cleanMobile = this.formMobile ? this.formMobile.replace(/\D/g, '') : '';
+    if (cleanMobile.length !== 10) {
+      alert('Mobile Number must be exactly 10 digits.');
       return;
     }
 

@@ -6,6 +6,7 @@ import {
   IsIn,
   IsObject,
   IsArray,
+  Matches,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -41,6 +42,7 @@ export class CreateEmergencyDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @Matches(/^[0-9]{10}$/, { message: 'Phone must be a valid 10-digit mobile number' })
   phone?: string;
 
   @ApiPropertyOptional()

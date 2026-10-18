@@ -421,8 +421,18 @@ type Schedule = 'GENERAL' | 'SCHEDULE_H' | 'SCHEDULE_H1' | 'SCHEDULE_X' | 'NARCO
       <!-- SALES TAB -->
       @if (activeTab() === 'sales') {
         <div>
-          <div class="tab-header">
-            <span></span>
+          <div class="tab-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--sp-4);">
+            <div style="display:flex; align-items:center; gap:var(--sp-2);">
+              <span style="font-size:var(--text-sm); font-weight:600; color:var(--clr-neutral-600)">Category:</span>
+              <select class="form-control" style="width:180px; padding:var(--sp-1) var(--sp-2); border-radius:var(--radius-md);" (change)="onSaleCategoryFilter($event)">
+                <option value="">All Categories</option>
+                <option value="DIRECT">🟢 Direct / Cash</option>
+                <option value="CORPORATE">🏢 Corporate</option>
+                <option value="INSURANCE">🛡️ Insurance / TPA</option>
+                <option value="GOVERNMENT_SCHEME">🏛️ Govt Scheme</option>
+                <option value="B2B_REFERRAL">🤝 B2B Referral</option>
+              </select>
+            </div>
             <button class="btn btn-primary" (click)="goNewSale()">+ New Sale</button>
           </div>
           <div class="card">
@@ -430,6 +440,7 @@ type Schedule = 'GENERAL' | 'SCHEDULE_H' | 'SCHEDULE_H1' | 'SCHEDULE_X' | 'NARCO
               <thead>
                 <tr>
                   <th>Patient</th>
+                  <th>Category / Sponsor</th>
                   <th>Item Name</th>
                   <th>Qty</th>
                   <th>Total Amount</th>
@@ -441,11 +452,11 @@ type Schedule = 'GENERAL' | 'SCHEDULE_H' | 'SCHEDULE_H1' | 'SCHEDULE_X' | 'NARCO
               <tbody>
                 @if (salesLoading()) {
                   <tr class="loading-row">
-                    <td colspan="7">Loading sales...</td>
+                    <td colspan="8">Loading sales...</td>
                   </tr>
                 } @else if (sales().length === 0) {
                   <tr>
-                    <td colspan="7">
+                    <td colspan="8">
                       <div class="empty-state">
                         No sales recorded yet. Click "New Sale" to start.
                       </div>
@@ -454,7 +465,28 @@ type Schedule = 'GENERAL' | 'SCHEDULE_H' | 'SCHEDULE_H1' | 'SCHEDULE_X' | 'NARCO
                 } @else {
                   @for (sale of sales(); track sale.id) {
                     <tr>
-                      <td>{{ sale.patientName || sale.patientId || '—' }}</td>
+                      <td>
+                        <div style="font-weight: 600;">{{ sale.patientName || 'Walk-in Customer' }}</div>
+                        @if (sale.patientId) {
+                          <div style="font-size: 11px; color: var(--clr-neutral-500); font-family: monospace;">{{ sale.patientId }}</div>
+                        }
+                      </td>
+                      <td>
+                        @if (sale.patientCategory === 'CORPORATE') {
+                          <span class="badge" style="background:#e0f2fe;color:#0369a1;font-weight:600">🏢 Corporate</span>
+                        } @else if (sale.patientCategory === 'INSURANCE') {
+                          <span class="badge" style="background:#fef3c7;color:#b45309;font-weight:600">🛡️ Insurance</span>
+                        } @else if (sale.patientCategory === 'GOVERNMENT_SCHEME') {
+                          <span class="badge" style="background:#f3e8ff;color:#7e22ce;font-weight:600">🏛️ Scheme</span>
+                        } @else if (sale.patientCategory === 'B2B_REFERRAL') {
+                          <span class="badge" style="background:#ffedd5;color:#c2410c;font-weight:600">🤝 B2B</span>
+                        } @else {
+                          <span class="badge badge-neutral">Direct</span>
+                        }
+                        @if (sale.sponsorName) {
+                          <div style="font-size:11px;color:var(--clr-neutral-500);margin-top:2px;">{{ sale.sponsorName }}</div>
+                        }
+                      </td>
                       <td>
                         @if (sale.items?.length) {
                           @for (item of sale.items; track item.drugId || $index) {
@@ -474,7 +506,13 @@ type Schedule = 'GENERAL' | 'SCHEDULE_H' | 'SCHEDULE_H1' | 'SCHEDULE_X' | 'NARCO
                         }
                       </td>
                       <td>₹{{ sale.totalAmount | number: '1.2-2' }}</td>
-                      <td>{{ sale.paymentMode }}</td>
+                      <td>
+                        @if (sale.paymentMode === 'CREDIT' || (sale.patientCategory && sale.patientCategory !== 'DIRECT')) {
+                          <span class="badge" style="background:#fef3c7;color:#b45309;font-weight:600">💳 CREDIT</span>
+                        } @else {
+                          <span class="badge badge-success">{{ sale.paymentMode }}</span>
+                        }
+                      </td>
                       <td>{{ sale.createdAt | date: 'dd MMM yyyy' }}</td>
                       <td style="display: flex; gap: var(--sp-2);">
                         <button
@@ -836,11 +874,18 @@ type Schedule = 'GENERAL' | 'SCHEDULE_H' | 'SCHEDULE_H1' | 'SCHEDULE_X' | 'NARCO
               <div class="invoice-meta">
                 <div class="meta-left">
                   <div><strong>Pt.Name : </strong>{{ selectedSale().patientName || selectedSale().patientId || '—' }}</div>
+                  @if (selectedSale().patientCategory && selectedSale().patientCategory !== 'DIRECT') {
+                    <div><strong>Category : </strong>{{ selectedSale().patientCategory }}</div>
+                    <div><strong>Sponsor : </strong>{{ selectedSale().sponsorName || 'Credit Sponsor' }}</div>
+                  }
+                  @if (selectedSale().policyNumber || selectedSale().employeeId) {
+                    <div><strong>Policy / Emp ID : </strong>{{ selectedSale().policyNumber || selectedSale().employeeId }}</div>
+                  }
                   <div><strong>Dr.Name : </strong>*</div>
                 </div>
                 <div class="meta-center">
                   <div><strong>BILL TIME : </strong>{{ selectedSale().createdAt | date:'HH:mm:ss' }}</div>
-                  <div><strong>BILL TYPE : </strong>{{ selectedSale().paymentMode }}</div>
+                  <div><strong>BILL TYPE : </strong>{{ selectedSale().paymentMode }} {{ (selectedSale().paymentMode === 'CREDIT' || (selectedSale().patientCategory && selectedSale().patientCategory !== 'DIRECT')) ? '(CREDIT / SPONSOR)' : '' }}</div>
                 </div>
                 <div class="meta-right">
                   <div><strong>InvNo : </strong>CS{{ selectedSale().id.substring(0,6).toUpperCase() }}</div>
@@ -957,6 +1002,8 @@ export class PharmacyPage implements OnInit {
     grnNumber: [''],
   });
 
+  saleCategoryFilter = signal('');
+
   ngOnInit(): void {
     this.loadSales();
     this.loadDrugs();
@@ -964,7 +1011,11 @@ export class PharmacyPage implements OnInit {
 
   loadSales(): void {
     this.salesLoading.set(true);
-    this.api.listSales().subscribe({
+    const params: Record<string, any> = {};
+    if (this.saleCategoryFilter()) {
+      params['patientCategory'] = this.saleCategoryFilter();
+    }
+    this.api.listSales(params).subscribe({
       next: (res) => {
         let salesData = res.data ?? res;
         if (Array.isArray(salesData)) {
@@ -992,6 +1043,12 @@ export class PharmacyPage implements OnInit {
       },
       error: () => this.salesLoading.set(false),
     });
+  }
+
+  onSaleCategoryFilter(event: Event): void {
+    const val = (event.target as HTMLSelectElement).value;
+    this.saleCategoryFilter.set(val);
+    this.loadSales();
   }
 
   loadDrugs(): void {

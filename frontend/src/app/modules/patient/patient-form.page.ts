@@ -232,15 +232,21 @@ import { PatientApiService } from '../../core/services/patient-api.service';
               </div>
 
               <div class="form-group">
-                <label class="form-label">Phone *</label>
+                <label class="form-label">Phone * (10 digits)</label>
                 <input
                   class="form-control"
                   formControlName="phone"
                   type="tel"
-                  placeholder="Primary phone"
+                  maxlength="10"
+                  pattern="[0-9]{10}"
+                  placeholder="10-digit mobile number"
+                  (input)="sanitizePhone('phone')"
                 />
-                @if (form.get('phone')?.invalid && form.get('phone')?.touched) {
-                  <span class="form-error">Phone is required.</span>
+                @if (form.get('phone')?.touched && form.get('phone')?.hasError('required')) {
+                  <span class="form-error">Mobile number is required.</span>
+                }
+                @if (form.get('phone')?.touched && form.get('phone')?.hasError('pattern')) {
+                  <span class="form-error">Mobile number must be exactly 10 digits.</span>
                 }
               </div>
 
@@ -250,8 +256,14 @@ import { PatientApiService } from '../../core/services/patient-api.service';
                   class="form-control"
                   formControlName="altPhone"
                   type="tel"
-                  placeholder="Alternate phone"
+                  maxlength="10"
+                  pattern="[0-9]{10}"
+                  placeholder="10-digit alternate mobile"
+                  (input)="sanitizePhone('altPhone')"
                 />
+                @if (form.get('altPhone')?.touched && form.get('altPhone')?.hasError('pattern')) {
+                  <span class="form-error">Alternate mobile number must be exactly 10 digits.</span>
+                }
               </div>
 
               <div class="form-group">
@@ -434,8 +446,8 @@ export class PatientFormPage implements OnInit {
     lastName: ['', Validators.required],
     gender: ['', Validators.required],
     dob: ['', Validators.required],
-    phone: ['', Validators.required],
-    altPhone: [''],
+    phone: ['', [Validators.required, Validators.pattern(/^[0-9]{10}$/)]],
+    altPhone: ['', [Validators.pattern(/^[0-9]{10}$/)]],
     email: [''],
     bloodGroup: [''],
     address: [''],
@@ -450,6 +462,16 @@ export class PatientFormPage implements OnInit {
     insurerId: [''],
     policyNumber: [''],
   });
+
+  sanitizePhone(controlName: 'phone' | 'altPhone'): void {
+    const val = this.form.get(controlName)?.value;
+    if (val) {
+      const cleaned = val.replace(/\D/g, '').slice(0, 10);
+      if (cleaned !== val) {
+        this.form.get(controlName)?.setValue(cleaned, { emitEvent: false });
+      }
+    }
+  }
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');

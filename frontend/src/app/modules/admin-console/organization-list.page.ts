@@ -99,8 +99,19 @@ import { DecimalPipe } from '@angular/common';
                   </select>
                 </div>
                 <div class="form-field">
-                  <label class="form-label">Phone</label>
-                  <input class="form-control" formControlName="phone" />
+                  <label class="form-label">Phone (10 digits)</label>
+                  <input 
+                    class="form-control" 
+                    formControlName="phone" 
+                    type="tel"
+                    maxlength="10"
+                    pattern="[0-9]{10}"
+                    placeholder="10-digit phone number"
+                    (input)="sanitizePhone()"
+                  />
+                  @if (orgForm.get('phone')?.touched && orgForm.get('phone')?.hasError('pattern')) {
+                    <span style="color: #ef4444; font-size: 11px;">Must be exactly 10 digits</span>
+                  }
                 </div>
                 <div class="form-field full">
                   <label class="form-label">Contact Person</label>
@@ -209,10 +220,20 @@ export class OrganizationListPage implements OnInit {
   orgForm: FormGroup = this.fb.group({
     name: ['', Validators.required],
     type: ['HOSPITAL'],
-    phone: [''],
+    phone: ['', [Validators.pattern(/^[0-9]{10}$/)]],
     contactPerson: [''],
     address: ['']
   });
+
+  sanitizePhone(): void {
+    const val = this.orgForm.get('phone')?.value;
+    if (val) {
+      const clean = val.replace(/\D/g, '').slice(0, 10);
+      if (clean !== val) {
+        this.orgForm.get('phone')?.setValue(clean, { emitEvent: false });
+      }
+    }
+  }
 
   // Rates Management
   showRatesModal = signal(false);

@@ -75,6 +75,31 @@ export class CreateSaleDto {
   @IsString()
   prescriptionRef?: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  patientCategory?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  organizationId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sponsorName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  policyNumber?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  employeeId?: string;
+
   @IsOptional()
   isPaid?: boolean;
 

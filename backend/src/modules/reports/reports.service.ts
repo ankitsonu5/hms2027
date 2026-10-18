@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { SmartReportSetting } from './entities/smart-report-setting.entity';
 
 export interface MonthPoint {
   month: string;
@@ -237,5 +238,68 @@ export class ReportsService {
       count: Number(r.count),
     }));
     return { total: byRole.reduce((s, b) => s + b.count, 0), scope: 'today', byRole };
+  }
+
+  // ── Smart Report Settings Database Handlers ──────────────────────────────
+
+  async getSmartReportSettings(tenantId: string): Promise<SmartReportSetting> {
+    const repo = this.db.getRepository(SmartReportSetting);
+    let setting = await repo.findOne({ where: { tenantId } });
+    if (!setting) {
+      setting = repo.create({
+        tenantId,
+        labId: '1587',
+        name: 'Access Path Lab India Pvt Ltd',
+        address: '14-37-41/2, Beside Sri Sathya IVF, Krishna Nagar,',
+        contactPhone: '9618135999',
+        contactEmail: 'accesspathlabs@gmail.com',
+        region: 'India',
+        timezone: 'Asia/Kolkata',
+        nabl: 'MC-1234',
+        reportLanguage: 'en',
+        callbackUrl: 'https://api.crelio.internal/report-callback',
+        coverPageStyle: 'Classic — data cover (default)',
+        closingPage: 'Simple — closing graphic only (default)',
+        tagline: 'Your Health, Decoded with Precision.',
+        website: 'https://www.placeholderlabs.com',
+        brandColor: '#1e3a8a',
+        logoUrl: '/access-pathlab-header.jpeg',
+        logoFileName: 'access-pathlab-header.jpeg',
+        accountPreferences: {},
+        testPreferences: {},
+      });
+      setting = await repo.save(setting);
+    }
+    return setting;
+  }
+
+  async updateSmartReportSettings(
+    tenantId: string,
+    data: Partial<SmartReportSetting>,
+  ): Promise<SmartReportSetting> {
+    const repo = this.db.getRepository(SmartReportSetting);
+    let setting = await repo.findOne({ where: { tenantId } });
+    if (!setting) {
+      setting = repo.create({ tenantId, ...data });
+    } else {
+      Object.assign(setting, data);
+    }
+    return repo.save(setting);
+  }
+
+  async updateSmartReportPreferences(
+    tenantId: string,
+    accountPreferences?: Record<string, boolean>,
+    testPreferences?: Record<string, boolean>,
+  ): Promise<SmartReportSetting> {
+    const repo = this.db.getRepository(SmartReportSetting);
+    const setting = await this.getSmartReportSettings(tenantId);
+    if (accountPreferences) {
+      setting.accountPreferences = { ...setting.accountPreferences, ...accountPreferences };
+    }
+    if (testPreferences) {
+      setting.testPreferences = { ...setting.testPreferences, ...testPreferences };
+    }
+    return repo.save(setting);
   }
 }

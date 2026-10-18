@@ -40,4 +40,20 @@ export class ReportsApiService {
   overview(months = 12) {
     return this.http.get<Overview>(`${API_BASE}/reports/overview`, { params: { months } });
   }
+
+  getSmartReportSettings() {
+    return this.http.get<any>(`${API_BASE}/reports/smart-settings`);
+  }
+
+  saveSmartReportSettings(data: any) {
+    return this.http.post<any>(`${API_BASE}/reports/smart-settings`, data);
+  }
+
+  saveSmartReportPreferences(data: {
+    accountPreferences?: Record<string, boolean>;
+    testPreferences?: Record<string, boolean>;
+  }) {
+    return this.http.post<any>(`${API_BASE}/reports/smart-settings/preferences`, data);
+  }
 }
+

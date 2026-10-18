@@ -4,6 +4,8 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { RouterModule } from '@angular/router';
 import { Router, ActivatedRoute } from '@angular/router';
 import { IpdApiService } from '../../core/services/ipd-api.service';
+import { PatientApiService } from '../../core/services/patient-api.service';
+import { ClinicianService } from '../../core/services/clinician.service';
 
 @Component({
   selector: 'hms-ipd-admission-form',
@@ -44,33 +46,88 @@ import { IpdApiService } from '../../core/services/ipd-api.service';
             <div class="form-card__body">
               <div class="field-row">
                 <div class="field">
-                  <label class="field__label">Patient ID <span class="required">*</span></label>
-                  <input
-                    class="field__input"
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label class="field__label" style="margin:0;">Select Patient <span class="required">*</span></label>
+                    <a routerLink="/registration" style="font-size:0.8rem; color:var(--clr-primary-600); text-decoration:none;">
+                      + Register New Patient
+                    </a>
+                  </div>
+                  
+                  <select
+                    class="field__select"
+                    (change)="onPatientSelect($event)"
                     [class.field__input--error]="isInvalid('patientId')"
-                    formControlName="patientId"
-                    placeholder="e.g. PAT-00123"
-                  />
+                  >
+                    <option value="">— Search / Choose Registered Patient —</option>
+                    @for (pat of patients(); track pat.id) {
+                      <option [value]="pat.id" [selected]="selectedPatient()?.id === pat.id">
+                        {{ pat.firstName }} {{ pat.lastName }} ({{ pat.uhid || 'No UHID' }}) - 📞 {{ pat.phone }}
+                      </option>
+                    }
+                  </select>
+
+                  @if (selectedPatient()) {
+                    <div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:var(--radius-md); padding:10px 14px; margin-top:8px; display:flex; justify-content:space-between; align-items:center;">
+                      <div>
+                        <strong>{{ selectedPatient()?.firstName }} {{ selectedPatient()?.lastName }}</strong>
+                        <div style="font-size:0.8rem; color:#475569;">
+                          UHID: {{ selectedPatient()?.uhid }} • {{ getPatientAgeGender(selectedPatient()) }} • 📞 {{ selectedPatient()?.phone }}
+                        </div>
+                        <div style="font-size:0.75rem; color:#64748b;">
+                          City: {{ selectedPatient()?.city || 'Varanasi' }} • Category: {{ selectedPatient()?.category || 'DIRECT' }}
+                        </div>
+                      </div>
+                      <span style="font-size:0.75rem; background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:9999px; font-weight:bold;">
+                        ✓ Patient Selected
+                      </span>
+                    </div>
+                  } @else {
+                    <div style="margin-top:6px;">
+                      <input
+                        class="field__input"
+                        [class.field__input--error]="isInvalid('patientId')"
+                        formControlName="patientId"
+                        placeholder="Or enter Patient ID / UHID manually (e.g. UHID-2026-00001)"
+                      />
+                    </div>
+                  }
+
                   @if (isInvalid('patientId')) {
-                    <span class="field__error">Patient ID is required.</span>
+                    <span class="field__error">Patient selection is required for admission.</span>
                   }
                 </div>
               </div>
+
               <div class="field-row field-row--2col">
                 <div class="field">
-                  <label class="field__label">Admitting Doctor ID</label>
-                  <input
-                    class="field__input"
-                    formControlName="admittingDoctorId"
-                    placeholder="e.g. DOC-0042"
-                  />
+                  <label class="field__label">Admitting Doctor <span class="required">*</span></label>
+                  <select
+                    class="field__select"
+                    [value]="form.value.admittingDoctorId || ''"
+                    (change)="onDoctorSelect($event)"
+                    [class.field__input--error]="isInvalid('admittingDoctorId')"
+                  >
+                    <option value="">— Select Admitting Doctor —</option>
+                    @for (doc of doctors(); track doc.id) {
+                      <option [value]="doc.id" [selected]="form.value.admittingDoctorId === doc.id">
+                        {{ doc.name }}{{ doc.specialisation ? ' (' + doc.specialisation + ')' : '' }}
+                      </option>
+                    }
+                  </select>
+                  @if (doctorsLoading()) {
+                    <span class="field__hint">Loading doctors…</span>
+                  }
+                  @if (isInvalid('admittingDoctorId')) {
+                    <span class="field__error">Admitting doctor is required.</span>
+                  }
                 </div>
                 <div class="field">
-                  <label class="field__label">Admitting Doctor Name</label>
+                  <label class="field__label">Doctor Name</label>
                   <input
                     class="field__input"
                     formControlName="admittingDoctorName"
-                    placeholder="Dr. Full Name"
+                    placeholder="Doctor Name"
+                    readonly
                   />
                 </div>
               </div>
@@ -190,13 +247,19 @@ import { IpdApiService } from '../../core/services/ipd-api.service';
                   />
                 </div>
                 <div class="field">
-                  <label class="field__label">Phone</label>
+                  <label class="field__label">Phone (10 digits)</label>
                   <input
                     class="field__input"
                     formControlName="attendantPhone"
-                    placeholder="+91 XXXXX XXXXX"
+                    placeholder="10-digit mobile number"
+                    maxlength="10"
+                    pattern="[0-9]{10}"
                     type="tel"
+                    (input)="sanitizeAttendantPhone()"
                   />
+                  @if (form.get('attendantPhone')?.touched && form.get('attendantPhone')?.hasError('pattern')) {
+                    <span style="color: var(--clr-danger-600); font-size: 11px;">Must be exactly 10 digits</span>
+                  }
                 </div>
                 <div class="field">
                   <label class="field__label">Relation</label>
@@ -556,6 +619,8 @@ import { IpdApiService } from '../../core/services/ipd-api.service';
 })
 export class IpdAdmissionFormPage implements OnInit {
   private api = inject(IpdApiService);
+  private patientApi = inject(PatientApiService);
+  private clinicianService = inject(ClinicianService);
   private fb = inject(FormBuilder);
   router = inject(Router);
   private route = inject(ActivatedRoute);
@@ -569,22 +634,42 @@ export class IpdAdmissionFormPage implements OnInit {
   vacantBeds = signal<any[]>([]);
   bedsLoading = signal(false);
 
+  patients = signal<any[]>([]);
+  selectedPatient = signal<any | null>(null);
+
+  defaultDoctors = [
+    { id: 'd32ca404-5d5f-4169-b601-a8d43f03fc6b', name: 'Dr. Krishna P Padagala', specialisation: 'Chief Physician / Admin' },
+    { id: '76d77fe7-7cc4-482e-a89a-7ad7df453a0d', name: 'Dr. Jain', specialisation: 'Cardiologist' },
+  ];
+  doctors = signal<any[]>([...this.defaultDoctors]);
+  doctorsLoading = signal(false);
+
   saving = signal(false);
   errorMsg = signal('');
+
+  sanitizeAttendantPhone(): void {
+    const val = this.form?.get('attendantPhone')?.value;
+    if (val) {
+      const clean = val.replace(/\D/g, '').slice(0, 10);
+      if (clean !== val) {
+        this.form.get('attendantPhone')?.setValue(clean, { emitEvent: false });
+      }
+    }
+  }
 
   ngOnInit(): void {
     this.form = this.fb.group({
       patientId: ['', Validators.required],
-      admittingDoctorId: [''],
-      admittingDoctorName: [''],
-      wardId: [''],
-      bedId: [''],
+      admittingDoctorId: ['d32ca404-5d5f-4169-b601-a8d43f03fc6b', Validators.required],
+      admittingDoctorName: ['Dr. Krishna P Padagala'],
+      wardId: ['', Validators.required],
+      bedId: ['', Validators.required],
       diagnosis: [''],
       admissionReason: [''],
-      diet: [''],
+      diet: ['NORMAL'],
       allergies: [''],
       attendantName: [''],
-      attendantPhone: [''],
+      attendantPhone: ['', [Validators.pattern(/^[0-9]{10}$/)]],
       attendantRelation: [''],
       depositAmount: [null],
     });
@@ -597,6 +682,117 @@ export class IpdAdmissionFormPage implements OnInit {
     }
 
     this.loadWards();
+    this.loadPatients();
+    this.loadDoctors();
+
+    // Check query params if wardId and bedId are pre-selected
+    const qWardId = this.route.snapshot.queryParamMap.get('wardId');
+    const qBedId = this.route.snapshot.queryParamMap.get('bedId');
+    if (qWardId) {
+      this.form.patchValue({ wardId: qWardId });
+      this.loadVacantBeds(qWardId, qBedId);
+    }
+
+    const qPatientId = this.route.snapshot.queryParamMap.get('patientId') || this.route.snapshot.queryParamMap.get('uhid');
+    if (qPatientId) {
+      this.form.patchValue({ patientId: qPatientId });
+    }
+  }
+
+  loadPatients(): void {
+    const qPatientId = this.route.snapshot.queryParamMap.get('patientId') || this.route.snapshot.queryParamMap.get('uhid');
+    this.patientApi.list({ limit: 100 }).subscribe({
+      next: (res) => {
+        const list = res?.data || [];
+        this.patients.set(list);
+        const currentId = qPatientId || this.form.get('patientId')?.value;
+        if (currentId) {
+          const found = list.find((p: any) => p.id === currentId || p.uhid === currentId);
+          if (found) {
+            this.selectedPatient.set(found);
+            this.form.patchValue({ patientId: found.uhid || found.id });
+          }
+        } else if (list.length === 1 && !this.isEdit) {
+          // Auto select if single patient exists
+          this.selectedPatient.set(list[0]);
+          this.form.patchValue({ patientId: list[0].uhid || list[0].id });
+        }
+      },
+    });
+  }
+
+  onPatientSelect(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    const patId = select.value;
+    if (!patId) {
+      this.selectedPatient.set(null);
+      this.form.patchValue({ patientId: '' });
+      return;
+    }
+    const found = this.patients().find((p: any) => p.id === patId);
+    if (found) {
+      this.selectedPatient.set(found);
+      this.form.patchValue({ patientId: found.uhid || found.id });
+    }
+  }
+
+  loadDoctors(): void {
+    this.doctorsLoading.set(true);
+    this.clinicianService.getClinicians().subscribe({
+      next: (list) => {
+        this.doctorsLoading.set(false);
+        const fetched = Array.isArray(list) ? list : [];
+        const formatted = fetched.map((c: any) => ({
+          id: c.id,
+          name: c.name?.toLowerCase().startsWith('dr') ? c.name : `Dr. ${c.name}`,
+          specialisation: c.specialisation || c.department || 'Consultant',
+        }));
+
+        const merged = [...formatted];
+        for (const def of this.defaultDoctors) {
+          if (!merged.some((m) => m.id === def.id || m.name?.toLowerCase() === def.name?.toLowerCase())) {
+            merged.push(def);
+          }
+        }
+        this.doctors.set(merged);
+
+        const currentDocId = this.form.get('admittingDoctorId')?.value;
+        if (currentDocId) {
+          const found = merged.find((d) => d.id === currentDocId);
+          if (found && !this.form.get('admittingDoctorName')?.value) {
+            this.form.patchValue({ admittingDoctorName: found.name });
+          }
+        }
+      },
+      error: () => {
+        this.doctorsLoading.set(false);
+        this.doctors.set(this.defaultDoctors);
+      },
+    });
+  }
+
+  onDoctorSelect(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    const docId = select.value;
+    const found = this.doctors().find((d) => d.id === docId);
+    if (found) {
+      this.form.patchValue({
+        admittingDoctorId: found.id,
+        admittingDoctorName: found.name,
+      });
+    } else {
+      this.form.patchValue({
+        admittingDoctorId: '',
+        admittingDoctorName: '',
+      });
+    }
+  }
+
+  getPatientAgeGender(patient: any): string {
+    if (!patient) return '';
+    const age = patient.age || (patient.dob ? new Date().getFullYear() - new Date(patient.dob).getFullYear() : '-');
+    const gender = patient.gender || 'OTHER';
+    return `${age}Y / ${gender}`;
   }
 
   loadWards(): void {
@@ -631,6 +827,16 @@ export class IpdAdmissionFormPage implements OnInit {
           attendantRelation: adm.attendantRelation ?? '',
           depositAmount: adm.depositAmount ?? null,
         });
+        if (adm.admittingDoctorId && !this.doctors().some((d) => d.id === adm.admittingDoctorId)) {
+          this.doctors.update((docs) => [
+            ...docs,
+            {
+              id: adm.admittingDoctorId,
+              name: adm.admittingDoctorName || 'Admitting Doctor',
+              specialisation: 'Attending Physician',
+            },
+          ]);
+        }
         if (adm.wardId) {
           this.loadVacantBeds(adm.wardId);
         }
@@ -646,11 +852,14 @@ export class IpdAdmissionFormPage implements OnInit {
     this.loadVacantBeds(wardId);
   }
 
-  loadVacantBeds(wardId: string): void {
+  loadVacantBeds(wardId: string, preSelectBedId?: string | null): void {
     this.bedsLoading.set(true);
     this.api.listBeds({ wardId, status: 'VACANT' }).subscribe({
       next: (beds) => {
         this.vacantBeds.set(Array.isArray(beds) ? beds : []);
+        if (preSelectBedId) {
+          this.form.patchValue({ bedId: preSelectBedId });
+        }
         this.bedsLoading.set(false);
       },
       error: () => {
@@ -686,6 +895,10 @@ export class IpdAdmissionFormPage implements OnInit {
       error: (err: any) => {
         this.saving.set(false);
         this.errorMsg.set(err?.error?.message ?? 'An error occurred. Please try again.');
+        if (payload.wardId) {
+          this.loadVacantBeds(payload.wardId);
+          this.form.patchValue({ bedId: '' });
+        }
       },
     });
   }

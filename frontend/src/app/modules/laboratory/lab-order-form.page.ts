@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { LabApiService } from '../../core/services/lab-api.service';
+import { PatientApiService } from '../../core/services/patient-api.service';
 import { OrganizationApiService } from '../../core/services/organization-api.service';
 import { PatientPickerComponent } from '../../shared/components/patient-picker.component';
 
@@ -328,6 +329,38 @@ import { PatientPickerComponent } from '../../shared/components/patient-picker.c
         font-family: var(--font-body);
         font-size: var(--text-sm);
       }
+
+      /* Credit Banner */
+      .credit-banner {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-4);
+        background: #f0fdf4;
+        border: 1px solid #86efac;
+        border-left: 4px solid #16a34a;
+        padding: var(--sp-3) var(--sp-4);
+        border-radius: var(--radius-md);
+        margin-top: var(--sp-4);
+      }
+      .credit-banner__badge {
+        background: #16a34a;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        padding: 3px 8px;
+        border-radius: 4px;
+        white-space: nowrap;
+      }
+      .credit-banner__info {
+        font-size: var(--text-xs);
+        color: #14532d;
+        line-height: 1.4;
+      }
+      .credit-banner__meta {
+        color: #166534;
+        margin-top: 2px;
+      }
     `,
   ],
   template: `
@@ -345,7 +378,11 @@ import { PatientPickerComponent } from '../../shared/components/patient-picker.c
           <div class="form-grid">
             <div class="form-group span-2">
               <label class="form-label">Patient *</label>
-              <hms-patient-picker formControlName="patientId" [invalid]="isInvalid('patientId')" />
+              <hms-patient-picker 
+                formControlName="patientId" 
+                [invalid]="isInvalid('patientId')" 
+                (patientSelected)="onPatientSelected($event)" 
+              />
               @if (isInvalid('patientId')) {
                 <span class="error-text">Select a patient to continue.</span>
               }
@@ -381,6 +418,21 @@ import { PatientPickerComponent } from '../../shared/components/patient-picker.c
             </div>
           </div>
         </form>
+
+        @if (selectedPatient()?.category && selectedPatient()?.category !== 'DIRECT') {
+          <div class="credit-banner">
+            <div class="credit-banner__badge">💳 CREDIT PATIENT</div>
+            <div class="credit-banner__info">
+              <div><b>Category:</b> {{ selectedPatient()?.category }} · <b>Sponsor:</b> {{ selectedPatient()?.sponsorName || selectedPatient()?.organization || 'Corporate / Scheme Sponsor' }}</div>
+              <div class="credit-banner__meta">
+                @if (selectedPatient()?.policyNumber) { <span><b>Policy / Card:</b> {{ selectedPatient()?.policyNumber }}</span> · }
+                @if (selectedPatient()?.employeeId) { <span><b>Emp ID:</b> {{ selectedPatient()?.employeeId }}</span> · }
+                <span><b>Payment Mode:</b> CREDIT (Billed to Sponsor Ledger)</span>
+                @if (selectedPatient()?.creditLimit) { · <span><b>Credit Limit:</b> ₹{{ selectedPatient()?.creditLimit }}</span> }
+              </div>
+            </div>
+          </div>
+        }
       </div>
 
       <!-- Section 2: Test Selection -->
@@ -540,6 +592,7 @@ import { PatientPickerComponent } from '../../shared/components/patient-picker.c
 })
 export class LabOrderFormPage implements OnInit {
   private labApi = inject(LabApiService);
+  private patientApi = inject(PatientApiService);
   private orgApi = inject(OrganizationApiService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
@@ -547,6 +600,8 @@ export class LabOrderFormPage implements OnInit {
 
   isEdit = signal(false);
   orderId = signal<string | null>(null);
+
+  selectedPatient = signal<any>(null);
 
   organizations = signal<any[]>([]);
   orgRates = signal<Map<string, number>>(new Map());
@@ -602,10 +657,29 @@ export class LabOrderFormPage implements OnInit {
       const patientId = this.route.snapshot.queryParamMap.get('patientId');
       if (patientId) {
         this.orderForm.patchValue({ patientId });
+        this.patientApi.getOne(patientId).subscribe({
+          next: (p) => this.onPatientSelected(p),
+          error: () => {},
+        });
       }
     }
     this.loadOrganizations();
     this.loadTests();
+  }
+
+  onPatientSelected(patient: any): void {
+    if (!patient) {
+      this.selectedPatient.set(null);
+      this.orderForm.patchValue({ organizationId: null });
+      this.onOrganizationChange();
+      return;
+    }
+    this.selectedPatient.set(patient);
+    const orgId = patient.corporateId || null;
+    if (orgId) {
+      this.orderForm.patchValue({ organizationId: orgId });
+      this.onOrganizationChange();
+    }
   }
 
   loadOrganizations(): void {
@@ -659,7 +733,14 @@ export class LabOrderFormPage implements OnInit {
           orderedByDoctorId: order.orderedByDoctorId,
           orderedByDoctorName: order.orderedByDoctorName,
           encounterId: order.encounterId,
+          organizationId: order.organizationId || null,
         });
+        if (order.patientId) {
+          this.patientApi.getOne(order.patientId).subscribe({
+            next: (p) => this.selectedPatient.set(p),
+            error: () => {},
+          });
+        }
         this.sampleForm.patchValue({
           sampleCollected: order.sampleCollected,
           sampleBarcode: order.sampleBarcode,
@@ -714,11 +795,16 @@ export class LabOrderFormPage implements OnInit {
     
     this.submitting.set(true);
 
+    const category = this.selectedPatient()?.category || 'DIRECT';
+    const isCredit = category !== 'DIRECT' || (this.orderForm.value.organizationId && this.orderForm.value.organizationId !== 'null');
+
     const payload = {
       ...this.orderForm.value,
       orderedByDoctorId: this.orderForm.value.orderedByDoctorId || 'WALK-IN',
       orderedByDoctorName: this.orderForm.value.orderedByDoctorName || 'Self / Walk-in',
       organizationId: this.orderForm.value.organizationId || null,
+      patientCategory: category,
+      sponsorName: this.selectedPatient()?.sponsorName || this.selectedPatient()?.organization || null,
       concessionPercentage: this.concessionPercentage(),
       concessionReason: this.concessionReason(),
       tests: this.selectedTests().map((t) => ({
@@ -726,7 +812,7 @@ export class LabOrderFormPage implements OnInit {
         testName: t.name || t.testName,
         price: this.getPriceForTest(t),
       })),
-      paymentMethod: (this.orderForm.value.organizationId && this.orderForm.value.organizationId !== 'null') ? 'CREDIT' : 'CASH',
+      paymentMethod: isCredit ? 'CREDIT' : 'CASH',
       totalAmount: this.totalAmount(),
       ...(this.isEdit() ? this.sampleForm.value : {}),
     };

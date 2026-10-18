@@ -75,6 +75,16 @@ export class CreateLabOrderDto {
   organizationId?: string;
 
   @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  sponsorName?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  patientCategory?: string;
+
+  @ApiPropertyOptional()
   @IsNumber()
   @IsOptional()
   concessionPercentage?: number;

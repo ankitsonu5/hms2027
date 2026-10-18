@@ -109,7 +109,19 @@ export class Bill {
 
   // Credit & Claims
   @Column({ nullable: true })
+  patientCategory: string;
+
+  @Column({ nullable: true })
   sponsorName: string;
+
+  @Column({ nullable: true })
+  employeeId: string;
+
+  @Column({ nullable: true })
+  policyNumber: string;
+
+  @Column({ nullable: true })
+  preAuthNumber: string;
 
   @Column({
     type: 'enum',

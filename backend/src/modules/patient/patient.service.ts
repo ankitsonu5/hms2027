@@ -73,6 +73,12 @@ export class PatientService {
   }
 
   async create(tenantId: string, dto: CreatePatientDto): Promise<Patient> {
+    if (dto.phone) {
+      dto.phone = dto.phone.replace(/\D/g, '').slice(0, 10);
+    }
+    if (dto.altPhone) {
+      dto.altPhone = dto.altPhone.replace(/\D/g, '').slice(0, 10);
+    }
     const year = new Date().getFullYear();
 
     // Derive the next UHID from the highest existing one this year — NOT the row
@@ -124,6 +130,12 @@ export class PatientService {
     id: string,
     dto: UpdatePatientDto,
   ): Promise<Patient> {
+    if (dto.phone) {
+      dto.phone = dto.phone.replace(/\D/g, '').slice(0, 10);
+    }
+    if (dto.altPhone) {
+      dto.altPhone = dto.altPhone.replace(/\D/g, '').slice(0, 10);
+    }
     const patient = await this.findOne(tenantId, id);
     Object.assign(patient, dto);
     return this.repo.save(patient);
