@@ -49,6 +49,9 @@ export class EmergencyService {
   }
 
   async create(tenantId: string, dto: CreateEmergencyDto): Promise<Emergency> {
+    if (dto.phone) {
+      dto.phone = dto.phone.replace(/\D/g, '').slice(0, 10);
+    }
     const entity = this.repo.create({
       ...(dto as unknown as Partial<Emergency>),
       tenantId,
@@ -61,6 +64,9 @@ export class EmergencyService {
     id: string,
     dto: UpdateEmergencyDto,
   ): Promise<Emergency> {
+    if (dto.phone) {
+      dto.phone = dto.phone.replace(/\D/g, '').slice(0, 10);
+    }
     const record = await this.findOne(tenantId, id);
     Object.assign(record, dto);
     return this.repo.save(record);

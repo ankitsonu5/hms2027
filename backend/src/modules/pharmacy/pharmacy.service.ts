@@ -111,6 +111,7 @@ export class PharmacyService {
     patientId: string | undefined,
     page: number = 1,
     limit: number = 20,
+    patientCategory?: string,
   ): Promise<{
     data: PharmacySale[];
     total: number;
@@ -118,8 +119,12 @@ export class PharmacyService {
     limit: number;
   }> {
     const where: any = { tenantId, isActive: true };
+
     if (patientId) {
       where.patientId = patientId;
+    }
+    if (patientCategory) {
+      where.patientCategory = patientCategory;
     }
 
     const [data, total] = await this.saleRepo.findAndCount({
@@ -145,7 +150,6 @@ export class PharmacyService {
 
     for (const item of items) {
       const baseAmount = item.saleRate * item.quantity;
-      // We don't apply item-level discounts anymore, we apply the global discount
       const gst = (baseAmount * item.gstPercent) / 100;
 
       subtotal += baseAmount;
@@ -155,19 +159,33 @@ export class PharmacyService {
     const discountTotal = discount;
     const totalAmount = subtotal + gstAmount - discountTotal;
 
+    const isCredit = (dto.patientCategory && dto.patientCategory !== 'DIRECT') || dto.paymentMode === PaymentMode.CREDIT;
+    const finalPaymentMode = isCredit ? PaymentMode.CREDIT : (paymentMode ?? PaymentMode.CASH);
+    const finalIsPaid = isCredit ? false : isPaid;
+    const paidAmount = finalIsPaid ? Number(totalAmount.toFixed(2)) : 0;
+    const balanceAmount = Number((totalAmount - paidAmount).toFixed(2));
+
     const sale = this.saleRepo.create({
       tenantId,
       patientId,
       patientName,
-      items,
+      patientCategory: dto.patientCategory,
+      organizationId: dto.organizationId,
+      sponsorName: dto.sponsorName,
+      policyNumber: dto.policyNumber,
+      employeeId: dto.employeeId,
+      paidAmount,
+      balanceAmount,
+      claimStatus: isCredit ? 'UNBILLED' : undefined,
+      items: items as any,
       subtotal: Number(subtotal.toFixed(2)),
       discountTotal: Number(discountTotal.toFixed(2)),
       gstAmount: Number(gstAmount.toFixed(2)),
       totalAmount: Number(totalAmount.toFixed(2)),
-      paymentMode: paymentMode ?? PaymentMode.CASH,
+      paymentMode: finalPaymentMode,
       prescriptionRef,
       soldByUserId,
-      isPaid,
+      isPaid: finalIsPaid,
     });
 
     const savedSale = await this.saleRepo.save(sale);
@@ -195,14 +213,20 @@ export class PharmacyService {
           patientName: patientName || 'Unknown Patient',
           items: billItems,
           concessionPercentage: concessionPercentage > 0 ? concessionPercentage : undefined,
-          notes: 'Auto-generated from Pharmacy Sale'
+          notes: 'Auto-generated from Pharmacy Sale',
+          patientCategory: dto.patientCategory,
+          organizationId: dto.organizationId,
+          sponsorName: dto.sponsorName,
+          policyNumber: dto.policyNumber,
+          employeeId: dto.employeeId,
+          paymentMode: finalPaymentMode as any,
         });
 
-        if (isPaid) {
+        if (finalIsPaid && !isCredit) {
           await this.billingService.addPayment(tenantId, {
             billId: bill.id,
             amount: Number(totalAmount.toFixed(2)),
-            paymentMode: (paymentMode ?? PaymentMode.CASH) as any,
+            paymentMode: (finalPaymentMode ?? PaymentMode.CASH) as any,
             transactionRef: savedSale.id,
           });
         }

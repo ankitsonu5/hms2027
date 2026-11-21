@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -46,6 +47,15 @@ export class IpdController {
     return this.ipdService.createWard(user.tenantId, dto);
   }
 
+  @Delete('wards/:id')
+  @ApiOperation({ summary: 'Delete a ward' })
+  deleteWard(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.ipdService.deleteWard(user.tenantId, id);
+  }
+
   // ─── Beds ─────────────────────────────────────────────────────────────────────
 
   @Get('beds')
@@ -60,6 +70,31 @@ export class IpdController {
     @Query('status') status?: BedStatus,
   ) {
     return this.ipdService.findAllBeds(user.tenantId, wardId, status);
+  }
+
+  @Post('beds')
+  @ApiOperation({ summary: 'Create a bed' })
+  createBed(
+    @CurrentUser() user: User,
+    @Body() dto: { wardId: string; bedNumber: string; status?: BedStatus },
+  ) {
+    return this.ipdService.createBed(user.tenantId, dto);
+  }
+
+  @Patch('beds/:id/status')
+  @ApiOperation({ summary: 'Update bed status (e.g. VACANT, CLEANING)' })
+  updateBedStatus(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('status') status: BedStatus,
+  ) {
+    return this.ipdService.updateBedStatus(user.tenantId, id, status);
+  }
+
+  @Delete('beds/:id')
+  @ApiOperation({ summary: 'Delete a bed' })
+  deleteBed(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
+    return this.ipdService.deleteBed(user.tenantId, id);
   }
 
   // ─── Admissions ───────────────────────────────────────────────────────────────
@@ -86,7 +121,10 @@ export class IpdController {
   @ApiOperation({
     summary: 'Admit a patient (creates admission, occupies bed)',
   })
-  createAdmission(@CurrentUser() user: User, @Body() dto: CreateAdmissionDto) {
+  createAdmission(
+    @CurrentUser() user: User,
+    @Body() dto: CreateAdmissionDto,
+  ) {
     return this.ipdService.createAdmission(user.tenantId, dto);
   }
 
@@ -100,12 +138,62 @@ export class IpdController {
     return this.ipdService.updateAdmission(user.tenantId, id, dto);
   }
 
+  @Post('admissions/:id/transfer')
+  @ApiOperation({ summary: 'Transfer patient to a different ward/bed' })
+  transferBed(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: { targetWardId: string; targetBedId: string; reason?: string },
+  ) {
+    return this.ipdService.transferBed(user.tenantId, id, dto);
+  }
+
+  @Post('admissions/:id/vitals')
+  @ApiOperation({ summary: 'Record inpatient clinical vitals' })
+  addVitals(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: any,
+  ) {
+    return this.ipdService.addVitals(user.tenantId, id, dto);
+  }
+
+  @Post('admissions/:id/notes')
+  @ApiOperation({ summary: 'Add doctor rounds / clinical progress note' })
+  addClinicalNote(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: any,
+  ) {
+    return this.ipdService.addClinicalNote(user.tenantId, id, dto);
+  }
+
   @Post('admissions/:id/discharge')
   @ApiOperation({ summary: 'Discharge a patient (sets bed to CLEANING)' })
   dischargePatient(
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto?: { dischargeSummary?: string; dischargeCondition?: string },
   ) {
-    return this.ipdService.dischargePatient(user.tenantId, id);
+    return this.ipdService.dischargePatient(user.tenantId, id, dto);
+  }
+
+  @Get('admissions/:id/bill')
+  @ApiOperation({ summary: 'Get official IPD bill for admission' })
+  getAdmissionBill(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.ipdService.getAdmissionBill(user.tenantId, id);
+  }
+
+  @Patch('admissions/:id/bill')
+  @ApiOperation({ summary: 'Edit/update IPD bill amounts and items for admission' })
+  updateAdmissionBill(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: any,
+  ) {
+    return this.ipdService.updateAdmissionBill(user.tenantId, id, dto);
   }
 }

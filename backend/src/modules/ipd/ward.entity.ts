@@ -34,6 +34,9 @@ export class Ward {
   @Column({ type: 'int', default: 0 })
   totalBeds: number;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 500 })
+  dailyRate: number;
+
   @Column({ default: true })
   isActive: boolean;
 

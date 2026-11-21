@@ -54,6 +54,12 @@ export class User {
   @Column({ nullable: true })
   registrationNo: string; // medical registration number
 
+  @Column({ nullable: true })
+  availableFrom: string; // e.g., '09:00'
+
+  @Column({ nullable: true })
+  availableTo: string; // e.g., '17:00'
+
   @Column({ default: true })
   isActive: boolean;
 

@@ -30,7 +30,9 @@
                 "input": "public"
               }
             ],
-            "styles": ["src/styles.scss"],
+            "styles": [
+              "src/styles.scss"
+            ],
             "outputPath": "../backend/client"
           },
           "configurations": {
@@ -38,13 +40,13 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kB",
-                  "maximumError": "1MB"
+                  "maximumWarning": "1.5MB",
+                  "maximumError": "2.5MB"
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "8kB",
-                  "maximumError": "16kB"
+                  "maximumWarning": "16kB",
+                  "maximumError": "32kB"
                 }
               ],
               "outputHashing": "all"

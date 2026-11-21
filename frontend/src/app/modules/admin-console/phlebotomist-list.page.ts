@@ -545,8 +545,19 @@ import { PhlebotomistApiService, PhlebotomistModel } from '../../core/services/p
                   </div>
 
                   <div class="form-field">
-                    <label class="form-label">Mobile Phone Number <span style="color: #ef4444;">*</span></label>
-                    <input class="form-control" formControlName="phone" placeholder="e.g. +91 98480 12345" />
+                    <label class="form-label">Mobile Phone Number <span style="color: #ef4444;">*</span> (10 digits)</label>
+                    <input 
+                      class="form-control" 
+                      formControlName="phone" 
+                      type="tel"
+                      maxlength="10"
+                      pattern="[0-9]{10}"
+                      placeholder="10-digit mobile number" 
+                      (input)="sanitizePhone()"
+                    />
+                    @if (phleboForm.get('phone')?.touched && phleboForm.get('phone')?.hasError('pattern')) {
+                      <span style="font-size: 11px; color: #ef4444;">Mobile number must be exactly 10 digits.</span>
+                    }
                   </div>
 
                   <div class="form-field full">
@@ -639,7 +650,7 @@ export class PhlebotomistListPage implements OnInit {
   phleboForm: FormGroup = this.fb.group({
     name: ['', Validators.required],
     employeeId: [''],
-    phone: ['', Validators.required],
+    phone: ['', [Validators.required, Validators.pattern(/^[0-9]{10}$/)]],
     email: [''],
     zone: ['', Validators.required],
     vehicleType: ['Motorcycle'],
@@ -649,6 +660,16 @@ export class PhlebotomistListPage implements OnInit {
     maxDailyCapacity: [15],
     notes: [''],
   });
+
+  sanitizePhone(): void {
+    const val = this.phleboForm.get('phone')?.value;
+    if (val) {
+      const clean = val.replace(/\D/g, '').slice(0, 10);
+      if (clean !== val) {
+        this.phleboForm.get('phone')?.setValue(clean, { emitEvent: false });
+      }
+    }
+  }
 
   filteredPhlebotomists = computed(() => {
     let list = this.phlebotomists();

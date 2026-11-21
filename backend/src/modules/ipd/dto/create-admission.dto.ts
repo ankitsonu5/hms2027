@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsDateString,
   Min,
+  Matches,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -68,6 +69,7 @@ export class CreateAdmissionDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @Matches(/^[0-9]{10}$/, { message: 'Attendant phone must be a valid 10-digit mobile number' })
   attendantPhone?: string;
 
   @ApiPropertyOptional()

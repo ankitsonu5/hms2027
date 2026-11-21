@@ -309,11 +309,20 @@ import { catchError } from 'rxjs/operators';
         <div class="filter-bar">
           <span class="filter-label">Status:</span>
           <select class="select-input" (change)="onStatusFilter($event)">
-            <option value="">All</option>
+            <option value="">All Statuses</option>
             <option value="ORDERED">Ordered</option>
             <option value="SAMPLE_COLLECTED">Sample Collected</option>
             <option value="IN_PROGRESS">In Progress</option>
             <option value="COMPLETED">Completed</option>
+          </select>
+          <span class="filter-label" style="margin-left:var(--sp-3)">Category:</span>
+          <select class="select-input" (change)="onCategoryFilter($event)">
+            <option value="">All Categories</option>
+            <option value="DIRECT">🟢 Direct / Cash</option>
+            <option value="CORPORATE">🏢 Corporate</option>
+            <option value="INSURANCE">🛡️ Insurance / TPA</option>
+            <option value="GOVERNMENT_SCHEME">🏛️ Govt Scheme</option>
+            <option value="B2B_REFERRAL">🤝 B2B Referral</option>
           </select>
         </div>
 
@@ -322,12 +331,13 @@ import { catchError } from 'rxjs/operators';
             <table>
               <thead>
                 <tr>
-                  <th>Patient UHID</th>
+                  <th>Patient</th>
+                  <th>Category / Sponsor</th>
                   <th>Doctor</th>
                   <th>Tests</th>
                   <th>Status</th>
                   <th>Amount</th>
-                  <th>Paid</th>
+                  <th>Payment</th>
                   <th>Date</th>
                   <th>Actions</th>
                 </tr>
@@ -335,16 +345,35 @@ import { catchError } from 'rxjs/operators';
               <tbody>
                 @if (ordersLoading()) {
                   <tr class="loading-row">
-                    <td colspan="8">Loading orders…</td>
+                    <td colspan="9">Loading orders…</td>
                   </tr>
                 } @else if (orders().length === 0) {
                   <tr>
-                    <td colspan="8"><div class="empty-state">No lab orders found.</div></td>
+                    <td colspan="9"><div class="empty-state">No lab orders found.</div></td>
                   </tr>
                 } @else {
                   @for (order of orders(); track order.id) {
                     <tr>
-                      <td>{{ order.patientUhid || order.patientId }}</td>
+                      <td>
+                        <div style="font-weight: 600;">{{ order.patientName }}</div>
+                        <div style="font-size: 11px; color: var(--clr-neutral-500); font-family: monospace;">{{ order.patientUhid }}</div>
+                      </td>
+                      <td>
+                        @if (order.patientCategory === 'CORPORATE') {
+                          <span class="badge" style="background:#e0f2fe;color:#0369a1;font-weight:600">🏢 Corporate</span>
+                        } @else if (order.patientCategory === 'INSURANCE') {
+                          <span class="badge" style="background:#fef3c7;color:#b45309;font-weight:600">🛡️ Insurance</span>
+                        } @else if (order.patientCategory === 'GOVERNMENT_SCHEME') {
+                          <span class="badge" style="background:#f3e8ff;color:#7e22ce;font-weight:600">🏛️ Scheme</span>
+                        } @else if (order.patientCategory === 'B2B_REFERRAL') {
+                          <span class="badge" style="background:#ffedd5;color:#c2410c;font-weight:600">🤝 B2B</span>
+                        } @else {
+                          <span class="badge badge-neutral">Direct</span>
+                        }
+                        @if (order.sponsorName) {
+                          <div style="font-size:11px;color:var(--clr-neutral-500);margin-top:2px;">{{ order.sponsorName }}</div>
+                        }
+                      </td>
                       <td>{{ order.orderedByDoctorName || order.orderedByDoctorId || '—' }}</td>
                       <td>{{ order.tests?.length ?? 0 }}</td>
                       <td>
@@ -354,19 +383,19 @@ import { catchError } from 'rxjs/operators';
                       </td>
                       <td>₹{{ order.totalAmount ?? 0 }}</td>
                       <td>
-                        @if (order.paid) {
-                          <span class="badge badge-success">Yes</span>
+                        @if (order.paymentMethod === 'CREDIT' || (order.patientCategory && order.patientCategory !== 'DIRECT')) {
+                          <span class="badge" style="background:#fef3c7;color:#b45309;font-weight:600">💳 CREDIT</span>
+                        } @else if (order.paid) {
+                          <span class="badge badge-success">Paid</span>
                         } @else {
-                          <span class="badge badge-neutral">No</span>
+                          <span class="badge badge-neutral">Pending</span>
                         }
                       </td>
                       <td>{{ order.createdAt | date: 'dd MMM yyyy' }}</td>
                       <td>
                         <button class="btn btn-ghost" (click)="editOrder(order.id)">Edit</button>
                         <button class="btn btn-ghost" (click)="viewBill(order.id)">Bill</button>
-                        <button class="btn btn-ghost" (click)="enterResults(order.id)">
-                          Results
-                        </button>
+                        <button class="btn btn-ghost" (click)="enterResults(order.id)">Results</button>
                         <button class="btn btn-danger-ghost" (click)="deleteOrder(order.id)">Delete</button>
                       </td>
                     </tr>
@@ -390,6 +419,7 @@ export class LaboratoryPage implements OnInit {
   orders = signal<any[]>([]);
   ordersLoading = signal(false);
   orderStatusFilter = signal('');
+  orderCategoryFilter = signal('');
 
   ngOnInit(): void {
     this.loadOrders();
@@ -416,10 +446,18 @@ export class LaboratoryPage implements OnInit {
         );
 
         forkJoin(reqs).subscribe(results => {
-          const mappedOrders = results.map(r => ({
+          let mappedOrders = results.map(r => ({
             ...r.order,
-            patientUhid: r.patient ? r.patient.uhid : r.order.patientId
+            patientName: r.patient ? `${r.patient.firstName} ${r.patient.lastName}` : '—',
+            patientUhid: r.patient ? r.patient.uhid : r.order.patientId,
+            patientCategory: r.order.patientCategory || r.patient?.category || 'DIRECT',
+            sponsorName: r.order.sponsorName || r.patient?.sponsorName || r.patient?.organization || '',
           }));
+
+          if (this.orderCategoryFilter()) {
+            mappedOrders = mappedOrders.filter(o => o.patientCategory === this.orderCategoryFilter());
+          }
+
           this.orders.set(mappedOrders);
           this.ordersLoading.set(false);
         });
@@ -434,6 +472,12 @@ export class LaboratoryPage implements OnInit {
   onStatusFilter(event: Event): void {
     const val = (event.target as HTMLSelectElement).value;
     this.orderStatusFilter.set(val);
+    this.loadOrders();
+  }
+
+  onCategoryFilter(event: Event): void {
+    const val = (event.target as HTMLSelectElement).value;
+    this.orderCategoryFilter.set(val);
     this.loadOrders();
   }
 

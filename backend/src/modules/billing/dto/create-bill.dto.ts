@@ -104,5 +104,30 @@ export class CreateBillDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  patientCategory?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  employeeId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  policyNumber?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  preAuthNumber?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  paymentMode?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   claimStatus?: string;
 }

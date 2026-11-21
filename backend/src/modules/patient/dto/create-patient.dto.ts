@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsBoolean,
   IsObject,
+  Matches,
 } from 'class-validator';
 import { PatientCategory, Gender, BloodGroup } from '../patient.entity';
 
@@ -23,10 +24,12 @@ export class CreatePatientDto {
   dob: string;
 
   @IsString()
+  @Matches(/^[0-9]{10}$/, { message: 'Phone must be a valid 10-digit mobile number' })
   phone: string;
 
   @IsOptional()
   @IsString()
+  @Matches(/^[0-9]{10}$/, { message: 'Alternate phone must be a valid 10-digit mobile number' })
   altPhone?: string;
 
   @IsOptional()

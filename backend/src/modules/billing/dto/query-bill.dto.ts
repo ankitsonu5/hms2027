@@ -35,6 +35,21 @@ export class QueryBillDto {
   @IsDateString()
   dateTo?: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  patientCategory?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  organizationId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  paymentMode?: string;
+
   @ApiPropertyOptional({ default: 1 })
   @IsOptional()
   @Type(() => Number)

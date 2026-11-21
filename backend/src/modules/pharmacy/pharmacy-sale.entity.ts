@@ -10,6 +10,7 @@ export enum PaymentMode {
   CASH = 'CASH',
   CARD = 'CARD',
   UPI = 'UPI',
+  CREDIT = 'CREDIT',
 }
 
 export interface SaleItem {
@@ -32,10 +33,34 @@ export class PharmacySale {
   tenantId: string;
 
   @Column({ nullable: true })
-  patientId: string;
+  patientId?: string;
 
   @Column({ nullable: true })
-  patientName: string;
+  patientName?: string;
+
+  @Column({ nullable: true })
+  patientCategory?: string;
+
+  @Column({ nullable: true })
+  organizationId?: string;
+
+  @Column({ nullable: true })
+  sponsorName?: string;
+
+  @Column({ nullable: true })
+  policyNumber?: string;
+
+  @Column({ nullable: true })
+  employeeId?: string;
+
+  @Column({ type: 'decimal', default: 0 })
+  paidAmount: number;
+
+  @Column({ type: 'decimal', default: 0 })
+  balanceAmount: number;
+
+  @Column({ nullable: true })
+  claimStatus?: string;
 
   @Column({ type: 'jsonb', default: [] })
   items: SaleItem[];

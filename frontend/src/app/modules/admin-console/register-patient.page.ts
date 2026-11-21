@@ -1,4 +1,11 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
+
+import { API_BASE } from '../../core/api-base';
+import { OrganizationApiService } from '../../core/services/organization-api.service';
 
 interface Patient {
   id: string;
@@ -7,13 +14,14 @@ interface Patient {
   lastName: string;
   gender: string;
   phone: string;
+  category?: string;
+  corporateId?: string;
+  sponsorName?: string;
+  employeeId?: string;
+  policyNumber?: string;
+  creditLimit?: number;
+  organization?: string;
 }
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
-import { Router } from '@angular/router';
-
-import { API_BASE } from '../../core/api-base';
 
 @Component({
   selector: 'hms-register-patient',
@@ -168,7 +176,7 @@ import { API_BASE } from '../../core/api-base';
 
       .services {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: var(--sp-3);
       }
 
@@ -455,11 +463,175 @@ import { API_BASE } from '../../core/api-base';
         background: var(--clr-danger-100);
       }
 
+      /* ── Category & Sponsor Panel ── */
+      .panel--category {
+        margin-bottom: var(--sp-4);
+        border: 1.5px solid var(--clr-primary-200);
+        background: var(--bg-surface);
+      }
+
+      .panel__head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: var(--sp-3);
+      }
+
+      .panel__title {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+      }
+
+      .panel__title h3 {
+        margin: 0;
+        font-size: var(--text-base);
+        font-weight: var(--fw-bold);
+        color: var(--text-primary);
+      }
+
+      .panel__hint {
+        margin: 2px 0 0;
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+      }
+
+      .category-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: var(--sp-2);
+        margin-bottom: var(--sp-3);
+      }
+
+      .cat-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 6px;
+        padding: 10px 8px;
+        background: var(--bg-muted);
+        border: 1.5px solid var(--border-default);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: all 0.15s ease-in-out;
+      }
+
+      .cat-card input {
+        display: none;
+      }
+
+      .cat-card:hover {
+        border-color: var(--clr-primary-400);
+        background: var(--bg-surface);
+      }
+
+      .cat-card.selected {
+        border-color: var(--clr-primary-600);
+        background: var(--clr-primary-50);
+        box-shadow: 0 0 0 1.5px var(--clr-primary-600);
+      }
+
+      .cat-card__icon {
+        font-size: 20px;
+      }
+
+      .cat-card__title {
+        font-size: 11px;
+        font-weight: var(--fw-bold);
+        color: var(--text-primary);
+        line-height: 1.2;
+      }
+
+      .cat-card__desc {
+        font-size: 9.5px;
+        color: var(--text-secondary);
+        line-height: 1.1;
+      }
+
+      .credit-box {
+        margin-top: var(--sp-3);
+        padding: var(--sp-3) var(--sp-4);
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-radius: var(--radius-md);
+      }
+
+      .credit-box__header {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+        margin-bottom: var(--sp-3);
+      }
+
+      .credit-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 700;
+        background: #f59e0b;
+        color: #fff;
+        border-radius: 4px;
+        letter-spacing: 0.5px;
+      }
+
+      .credit-note {
+        font-size: 12px;
+        color: #92400e;
+        font-weight: 500;
+      }
+
+      .badge-category {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 600;
+        border-radius: 12px;
+        margin-top: 4px;
+      }
+
+      .badge-category--direct {
+        background: #dcfce7;
+        color: #15803d;
+      }
+
+      .badge-category--corporate {
+        background: #dbeafe;
+        color: #1d4ed8;
+      }
+
+      .badge-category--insurance {
+        background: #f3e8ff;
+        color: #7e22ce;
+      }
+
+      .badge-category--scheme {
+        background: #fef3c7;
+        color: #b45309;
+      }
+
+      .badge-category--b2b {
+        background: #cffafe;
+        color: #0e7490;
+      }
+
+      @media (max-width: 768px) {
+        .category-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
       @media (max-width: 620px) {
         .row,
         .row--3,
         .opts--grid {
           grid-template-columns: minmax(0, 1fr);
+        }
+        .services {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
     `,
@@ -515,6 +687,9 @@ import { API_BASE } from '../../core/api-base';
               <span>
                 <span class="prow__name">{{ p.firstName }} {{ p.lastName }}</span><br />
                 <span class="prow__meta">{{ p.uhid }} · {{ p.gender }} · {{ p.phone }}</span>
+                <span class="badge-category" [ngClass]="getCategoryBadgeClass(p.category)">
+                  {{ getCategoryLabel(p) }}
+                </span>
               </span>
               <span class="prow__meta">Choose service →</span>
             </button>
@@ -542,6 +717,9 @@ import { API_BASE } from '../../core/api-base';
                 <span>
                   <span class="prow__name">{{ p.firstName }} {{ p.lastName }}</span><br />
                   <span class="prow__meta">{{ p.uhid }} · {{ p.gender }} · {{ p.phone }}</span>
+                  <span class="badge-category" [ngClass]="getCategoryBadgeClass(p.category)">
+                    {{ getCategoryLabel(p) }}
+                  </span>
                 </span>
               </button>
             }
@@ -550,6 +728,136 @@ import { API_BASE } from '../../core/api-base';
       </div>
 
       <div class="cols">
+        <!-- ══ Category & Credit Sponsor ═══════════════════════════════ -->
+        <section class="panel panel--category">
+          <div class="panel__head">
+            <div class="panel__title">
+              <span class="panel__icon">🏷️</span>
+              <div>
+                <h3>Patient Billing Category</h3>
+                <p class="panel__hint">Select whether this patient pays direct cash or is sponsored on credit (Corporate, Insurance, Govt Scheme, B2B).</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="category-grid">
+            @for (cat of categories; track cat.value) {
+              <label class="cat-card" [class.selected]="m.category === cat.value">
+                <input type="radio" name="category" [value]="cat.value" [(ngModel)]="m.category" (change)="onCategoryChange()" />
+                <span class="cat-card__icon">{{ cat.icon }}</span>
+                <span class="cat-card__content">
+                  <span class="cat-card__title">{{ cat.label }}</span>
+                  <span class="cat-card__desc">{{ cat.desc }}</span>
+                </span>
+              </label>
+            }
+          </div>
+
+          @if (m.category !== 'DIRECT') {
+            <div class="credit-box">
+              <div class="credit-box__header">
+                <span class="credit-badge">💳 CREDIT PATIENT</span>
+                <span class="credit-note">All subsequent OPD, Lab investigations, and Pharmacy bills will automatically inherit this credit sponsor.</span>
+              </div>
+
+              <!-- CORPORATE -->
+              @if (m.category === 'CORPORATE') {
+                <div class="row row--3">
+                  <div class="field">
+                    <label for="corpOrg">Corporate Organization <span class="req">*</span></label>
+                    <select id="corpOrg" name="corporateId" [(ngModel)]="m.corporateId" (change)="onCorporateSelect()">
+                      <option value="">Select Corporate Partner…</option>
+                      @for (org of organizations(); track org.id) {
+                        <option [value]="org.id">{{ org.name }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="empId">Employee / Staff ID</label>
+                    <input id="empId" type="text" name="employeeId" placeholder="e.g. EMP-9821" [(ngModel)]="m.employeeId" />
+                  </div>
+                  <div class="field">
+                    <label for="cLimit">Credit Limit (₹)</label>
+                    <input id="cLimit" type="number" name="creditLimit" placeholder="e.g. 50000" [(ngModel)]="m.creditLimit" />
+                  </div>
+                </div>
+              }
+
+              <!-- INSURANCE / TPA -->
+              @if (m.category === 'INSURANCE') {
+                <div class="row row--3">
+                  <div class="field">
+                    <label for="insOrg">TPA / Insurer Sponsor <span class="req">*</span></label>
+                    <select id="insOrg" name="corporateId" [(ngModel)]="m.corporateId" (change)="onCorporateSelect()">
+                      <option value="">Select TPA / Insurer…</option>
+                      @for (org of organizations(); track org.id) {
+                        <option [value]="org.id">{{ org.name }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="polNum">Policy / Health Card No <span class="req">*</span></label>
+                    <input id="polNum" type="text" name="policyNumber" placeholder="e.g. POL-8472910" [(ngModel)]="m.policyNumber" />
+                  </div>
+                  <div class="field">
+                    <label for="insLimit">Approved Pre-Auth Limit (₹)</label>
+                    <input id="insLimit" type="number" name="creditLimit" placeholder="e.g. 100000" [(ngModel)]="m.creditLimit" />
+                  </div>
+                </div>
+              }
+
+              <!-- GOVERNMENT SCHEME -->
+              @if (m.category === 'GOVERNMENT_SCHEME') {
+                <div class="row row--3">
+                  <div class="field">
+                    <label for="schemeName">Government Scheme Name <span class="req">*</span></label>
+                    <select id="schemeName" name="sponsorName" [(ngModel)]="m.sponsorName" (change)="onSchemeSelect()">
+                      <option value="">Select Scheme…</option>
+                      <option value="Ayushman Bharat - PMJAY">Ayushman Bharat - PMJAY</option>
+                      <option value="Central Government Health Scheme (CGHS)">Central Government Health Scheme (CGHS)</option>
+                      <option value="Ex-Servicemen Contributory Health Scheme (ECHS)">Ex-Servicemen Contributory Health Scheme (ECHS)</option>
+                      <option value="State Health Card Scheme">State Health Card Scheme</option>
+                      <option value="Employees' State Insurance (ESIC)">Employees' State Insurance (ESIC)</option>
+                      <option value="Railway Medical Card">Railway Medical Card</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="beneId">Beneficiary / PMJAY ID <span class="req">*</span></label>
+                    <input id="beneId" type="text" name="policyNumber" placeholder="e.g. PMJAY-1234-5678" [(ngModel)]="m.policyNumber" />
+                  </div>
+                  <div class="field">
+                    <label for="schLimit">Scheme Wallet Cap (₹)</label>
+                    <input id="schLimit" type="number" name="creditLimit" placeholder="e.g. 500000" [(ngModel)]="m.creditLimit" />
+                  </div>
+                </div>
+              }
+
+              <!-- B2B REFERRAL -->
+              @if (m.category === 'B2B_REFERRAL') {
+                <div class="row row--3">
+                  <div class="field">
+                    <label for="b2bOrg">Partner Hospital / Lab / Center</label>
+                    <select id="b2bOrg" name="corporateId" [(ngModel)]="m.corporateId" (change)="onCorporateSelect()">
+                      <option value="">Select Partner Center…</option>
+                      @for (org of organizations(); track org.id) {
+                        <option [value]="org.id">{{ org.name }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="refDoc">Referring Doctor Name</label>
+                    <input id="refDoc" type="text" name="referral" placeholder="Dr. Name" [(ngModel)]="m.referral" />
+                  </div>
+                  <div class="field">
+                    <label for="b2bCredit">Credit Limit (₹)</label>
+                    <input id="b2bCredit" type="number" name="creditLimit" placeholder="e.g. 25000" [(ngModel)]="m.creditLimit" />
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </section>
+
         <!-- ══ Demographics ═══════════════════════════════════════════ -->
         <section class="panel">
           <div class="row row--3">
@@ -630,11 +938,27 @@ import { API_BASE } from '../../core/api-base';
               </div>
             </div>
             <div class="field">
-              <label for="phone">Contact Number</label>
+              <label for="phone">Contact Number <span class="req">*</span></label>
               <div class="phone">
                 <span class="cc">+91</span>
-                <input id="phone" type="tel" name="phone" placeholder="081234 56789" [(ngModel)]="m.phone" />
+                <input
+                  id="phone"
+                  type="tel"
+                  name="phone"
+                  maxlength="10"
+                  pattern="[0-9]{10}"
+                  placeholder="10-digit mobile number"
+                  [(ngModel)]="m.phone"
+                  (input)="sanitizePhone()"
+                  #phoneRef="ngModel"
+                  [class.invalid]="(phoneRef.invalid || (m.phone && m.phone.length !== 10)) && phoneRef.touched"
+                />
               </div>
+              @if ((phoneRef.invalid || (m.phone && m.phone.length !== 10)) && phoneRef.touched) {
+                <span style="font-size: 11px; color: var(--clr-danger-600); margin-top: 2px;">
+                  Mobile number must be exactly 10 digits
+                </span>
+              }
             </div>
           </div>
 
@@ -719,6 +1043,7 @@ import { API_BASE } from '../../core/api-base';
 export class RegisterPatientPage implements OnInit {
   private http = inject(HttpClient);
   private router = inject(Router);
+  private orgApi = inject(OrganizationApiService);
 
   patientId = signal('—');
   saving = signal(false);
@@ -728,6 +1053,7 @@ export class RegisterPatientPage implements OnInit {
   tab = signal<'new' | 'registered'>('new');
   registered = signal<Patient[]>([]);
   selected = signal<Patient | null>(null);
+  organizations = signal<any[]>([]);
 
   q = '';
   results = signal<Patient[]>([]);
@@ -735,6 +1061,7 @@ export class RegisterPatientPage implements OnInit {
 
   /** What a registered patient can be sent to next. */
   services = [
+    { key: 'bill', label: 'Create Bill', hint: 'OPD / General bill', route: '/billing/new' },
     { key: 'appointment', label: 'Book Appointment', hint: 'Doctor consultation', route: '/registration/appointments/list' },
     { key: 'lab', label: 'Lab Test', hint: 'Order tests & billing', route: '/laboratory/order/new' },
     { key: 'pharmacy', label: 'Pharmacy', hint: 'Dispense & billing', route: '/pharmacy/sale/new' },
@@ -766,20 +1093,15 @@ export class RegisterPatientPage implements OnInit {
     { value: 'OTHER', label: 'Other' },
   ];
   categories = [
-    { value: 'DIRECT', label: 'Direct' },
-    { value: 'B2B_REFERRAL', label: 'B2B Referral' },
-    { value: 'CORPORATE', label: 'Corporate' },
-    { value: 'INSURANCE', label: 'Insurance' },
+    { value: 'DIRECT', label: 'Direct / Cash', icon: '🟢', desc: 'Standard counter payment' },
+    { value: 'CORPORATE', label: 'Corporate', icon: '🏢', desc: 'Company credit tie-up' },
+    { value: 'INSURANCE', label: 'Insurance / TPA', icon: '🛡️', desc: 'Cashless health insurance' },
+    { value: 'GOVERNMENT_SCHEME', label: 'Govt Scheme', icon: '🏛️', desc: 'PMJAY, CGHS, ECHS, etc.' },
+    { value: 'B2B_REFERRAL', label: 'B2B Partner', icon: '🤝', desc: 'Referring lab / hospital' },
   ];
   countries = ['India', 'Nepal', 'Bhutan', 'Bangladesh', 'Sri Lanka', 'United Arab Emirates', 'Other'];
 
-
-
-
-
-
   m = this.blankDemographics();
-
 
   private blankDemographics() {
     return {
@@ -802,14 +1124,79 @@ export class RegisterPatientPage implements OnInit {
       district: '',
       pincode: '',
       country: 'India',
-      category: '',
+      category: 'DIRECT',
+      corporateId: '',
+      sponsorName: '',
+      employeeId: '',
+      policyNumber: '',
+      creditLimit: 0,
     };
   }
-
 
   ngOnInit(): void {
     this.loadRegistered();
     this.loadNextUhid();
+    this.loadOrganizations();
+  }
+
+  loadOrganizations(): void {
+    this.orgApi.list().subscribe({
+      next: (orgs) => this.organizations.set(orgs || []),
+      error: (e) => console.error('Failed to load organizations', e),
+    });
+  }
+
+  onCategoryChange(): void {
+    if (this.m.category === 'DIRECT') {
+      this.m.corporateId = '';
+      this.m.sponsorName = '';
+      this.m.employeeId = '';
+      this.m.policyNumber = '';
+      this.m.creditLimit = 0;
+      this.m.organization = 'Walkin';
+    } else if (this.m.category === 'CORPORATE') {
+      this.m.organization = this.m.sponsorName || 'Corporate Partner';
+    } else if (this.m.category === 'INSURANCE') {
+      this.m.organization = this.m.sponsorName || 'Insurance Sponsor';
+    } else if (this.m.category === 'GOVERNMENT_SCHEME') {
+      this.m.organization = this.m.sponsorName || 'Govt Scheme';
+    } else if (this.m.category === 'B2B_REFERRAL') {
+      this.m.organization = this.m.sponsorName || 'B2B Partner';
+    }
+  }
+
+  onCorporateSelect(): void {
+    const org = this.organizations().find(o => o.id === this.m.corporateId);
+    if (org) {
+      this.m.sponsorName = org.name;
+      this.m.organization = org.name;
+    }
+  }
+
+  onSchemeSelect(): void {
+    if (this.m.sponsorName) {
+      this.m.organization = this.m.sponsorName;
+    }
+  }
+
+  getCategoryBadgeClass(category?: string): string {
+    switch (category) {
+      case 'CORPORATE': return 'badge-category--corporate';
+      case 'INSURANCE': return 'badge-category--insurance';
+      case 'GOVERNMENT_SCHEME': return 'badge-category--scheme';
+      case 'B2B_REFERRAL': return 'badge-category--b2b';
+      default: return 'badge-category--direct';
+    }
+  }
+
+  getCategoryLabel(p: Patient): string {
+    switch (p.category) {
+      case 'CORPORATE': return `🏢 Corporate${p.sponsorName ? ' · ' + p.sponsorName : ''}`;
+      case 'INSURANCE': return `🛡️ Insurance${p.sponsorName ? ' · ' + p.sponsorName : ''}`;
+      case 'GOVERNMENT_SCHEME': return `🏛️ Scheme${p.sponsorName ? ' · ' + p.sponsorName : ''}`;
+      case 'B2B_REFERRAL': return `🤝 B2B${p.sponsorName ? ' · ' + p.sponsorName : ''}`;
+      default: return '🟢 Direct / Cash';
+    }
   }
 
   /** Advisory preview of the id this registration will get. */
@@ -856,6 +1243,12 @@ export class RegisterPatientPage implements OnInit {
     this.router.navigate([sv.route], { queryParams: { patientId: p.id, uhid: p.uhid } });
   }
 
+  sanitizePhone(): void {
+    if (this.m.phone) {
+      this.m.phone = this.m.phone.replace(/\D/g, '').slice(0, 10);
+    }
+  }
+
   clear(f?: any): void {
     this.m = this.blankDemographics();
     this.okMsg.set('');
@@ -882,6 +1275,11 @@ export class RegisterPatientPage implements OnInit {
       return;
     }
 
+    if (this.m.phone && this.m.phone.replace(/\D/g, '').length !== 10) {
+      this.errMsg.set('Mobile number must be exactly 10 digits.');
+      return;
+    }
+
     const [firstName, ...rest] = this.m.name.trim().split(/\s+/);
     const payload: Record<string, unknown> = {
       firstName,
@@ -903,7 +1301,12 @@ export class RegisterPatientPage implements OnInit {
       referredByDoctorName: this.m.referral || undefined,
       phoneBelongsTo: this.m.phoneBelongsTo,
       whatsappConsent: this.m.whatsappConsent,
-      category: this.m.category || undefined,
+      category: this.m.category || 'DIRECT',
+      corporateId: this.m.corporateId || undefined,
+      sponsorName: this.m.sponsorName || undefined,
+      employeeId: this.m.employeeId || undefined,
+      policyNumber: this.m.policyNumber || undefined,
+      creditLimit: Number(this.m.creditLimit) || 0,
     };
     Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
 
@@ -912,7 +1315,6 @@ export class RegisterPatientPage implements OnInit {
       next: (p) => {
         this.saving.set(false);
         this.patientId.set(p.uhid);
-        // clear() resets the banners too, so set the message after it.
         // clear() resets the banners too, so set the message after it.
         this.clear();
         this.okMsg.set(`Patient registered — UHID ${p.uhid}`);

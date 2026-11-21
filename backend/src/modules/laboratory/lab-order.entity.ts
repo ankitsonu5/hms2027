@@ -65,6 +65,12 @@ export class LabOrder {
   @Column({ nullable: true })
   organizationId: string;
 
+  @Column({ nullable: true })
+  sponsorName: string;
+
+  @Column({ nullable: true })
+  patientCategory: string;
+
   @Column({ default: false })
   isPaid: boolean;
 

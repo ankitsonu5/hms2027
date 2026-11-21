@@ -477,14 +477,20 @@ import { EmergencyApiService } from '../../core/services/emergency-api.service';
                 </select>
               </div>
               <div class="field">
-                <label for="phone">Phone</label>
+                <label for="phone">Phone (10 digits)</label>
                 <input
                   id="phone"
                   type="tel"
                   class="input"
                   formControlName="phone"
-                  placeholder="10-digit number"
+                  maxlength="10"
+                  pattern="[0-9]{10}"
+                  placeholder="10-digit mobile number"
+                  (input)="sanitizePhone()"
                 />
+                @if (form.get('phone')?.touched && form.get('phone')?.hasError('pattern')) {
+                  <span class="field-error" style="color: var(--clr-danger-600); font-size: 11px;">Must be exactly 10 digits</span>
+                }
               </div>
             </div>
             <div class="field-row">
@@ -783,7 +789,7 @@ export class EmergencyFormPage implements OnInit {
     patientName: ['', Validators.required],
     age: [null],
     gender: [''],
-    phone: [''],
+    phone: ['', [Validators.pattern(/^[0-9]{10}$/)]],
     mlcCase: [false],
     mlcNumber: [''],
     // Section 2
@@ -808,6 +814,16 @@ export class EmergencyFormPage implements OnInit {
 
   get drugsArray(): FormArray {
     return this.form.get('drugsAdministered') as FormArray;
+  }
+
+  sanitizePhone(): void {
+    const val = this.form.get('phone')?.value;
+    if (val) {
+      const clean = val.replace(/\D/g, '').slice(0, 10);
+      if (clean !== val) {
+        this.form.get('phone')?.setValue(clean, { emitEvent: false });
+      }
+    }
   }
 
   ngOnInit(): void {

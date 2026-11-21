@@ -6,8 +6,11 @@ import { IpdAdmission } from './ipd-admission.entity';
 import { IpdService } from './ipd.service';
 import { IpdController } from './ipd.controller';
 
+import { Bill } from '../billing/bill.entity';
+import { Payment } from '../billing/payment.entity';
+
 @Module({
-  imports: [TypeOrmModule.forFeature([Ward, Bed, IpdAdmission])],
+  imports: [TypeOrmModule.forFeature([Ward, Bed, IpdAdmission, Bill, Payment])],
   controllers: [IpdController],
   providers: [IpdService],
   exports: [IpdService],

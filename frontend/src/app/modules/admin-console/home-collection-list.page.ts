@@ -1054,8 +1054,18 @@ import { BillingApiService } from '../../core/services/billing-api.service';
               </div>
 
               <div class="form-field">
-                <label class="form-label">Mobile Number <span style="color: #ef4444;">*</span></label>
-                <input class="form-control" [(ngModel)]="formMobile" name="mobile" placeholder="Enter 10-digit mobile number" required />
+                <label class="form-label">Mobile Number <span style="color: #ef4444;">*</span> (10 digits)</label>
+                <input 
+                  class="form-control" 
+                  [(ngModel)]="formMobile" 
+                  name="mobile" 
+                  type="tel"
+                  maxlength="10"
+                  pattern="[0-9]{10}"
+                  placeholder="Enter 10-digit mobile number" 
+                  (input)="sanitizeMobile()"
+                  required 
+                />
               </div>
 
               <div class="form-field">
@@ -1820,8 +1830,20 @@ export class HomeCollectionListPage implements OnInit {
   });
 
 
+  sanitizeMobile(): void {
+    if (this.formMobile) {
+      this.formMobile = this.formMobile.replace(/\D/g, '').slice(0, 10);
+    }
+  }
+
   saveCollection(): void {
     if (!this.formPatientName || !this.formMobile || this.selectedTests.length === 0) {
+      return;
+    }
+
+    const cleanMobile = this.formMobile ? this.formMobile.replace(/\D/g, '') : '';
+    if (cleanMobile.length !== 10) {
+      alert('Mobile Number must be exactly 10 digits.');
       return;
     }
 

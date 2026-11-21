@@ -94,6 +94,7 @@ export class PharmacyController {
   findAllSales(
     @CurrentUser() user: { tenantId: string },
     @Query('patientId') patientId: string | undefined,
+    @Query('patientCategory') patientCategory: string | undefined,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20,
   ) {
@@ -102,6 +103,7 @@ export class PharmacyController {
       patientId,
       Number(page),
       Number(limit),
+      patientCategory,
     );
   }
 

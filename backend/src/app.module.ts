@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { existsSync } from 'fs';
 import { AuthModule } from './modules/auth/auth.module';
 import { PatientModule } from './modules/patient/patient.module';
 import { OpdModule } from './modules/opd/opd.module';
@@ -14,6 +15,22 @@ import { PharmacyModule } from './modules/pharmacy/pharmacy.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { OrganizationModule } from './modules/organization/organization.module';
 import { PhlebotomistModule } from './modules/phlebotomist/phlebotomist.module';
+import { DepartmentModule } from './modules/department/department.module';
+
+function getClientPath(): string {
+  const candidates = [
+    join(__dirname, '..', 'client', 'browser'),
+    join(__dirname, '..', '..', 'client', 'browser'),
+    join(process.cwd(), 'client', 'browser'),
+    join(process.cwd(), 'dist', 'client', 'browser'),
+  ];
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return join(__dirname, '..', 'client', 'browser');
+}
 
 @Module({
   imports: [
@@ -48,12 +65,12 @@ import { PhlebotomistModule } from './modules/phlebotomist/phlebotomist.module';
     BillingModule,
     PharmacyModule,
     ReportsModule,
-    OrganizationModule,
     PhlebotomistModule,
+    DepartmentModule,
 
     // ── Serve Angular build ────────────────────────────────────────────────────
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'client', 'browser'),
+      rootPath: getClientPath(),
       // path-to-regexp v8 syntax (Express 5). The old '/api/(.*)' form throws on
       // every request, which 500'd all deep links. This excludes /api and
       // everything under it; every other path gets the Angular index.html.

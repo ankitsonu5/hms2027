@@ -319,6 +319,38 @@ interface DrugResult {
         color: var(--clr-danger-600);
         margin-top: var(--sp-2);
       }
+
+      /* Credit Banner */
+      .credit-banner {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-4);
+        background: #f0fdf4;
+        border: 1px solid #86efac;
+        border-left: 4px solid #16a34a;
+        padding: var(--sp-3) var(--sp-4);
+        border-radius: var(--radius-md);
+        margin-top: var(--sp-4);
+      }
+      .credit-banner__badge {
+        background: #16a34a;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        padding: 3px 8px;
+        border-radius: 4px;
+        white-space: nowrap;
+      }
+      .credit-banner__info {
+        font-size: var(--text-xs);
+        color: #14532d;
+        line-height: 1.4;
+      }
+      .credit-banner__meta {
+        color: #166534;
+        margin-top: 2px;
+      }
     `,
   ],
   template: `
@@ -356,6 +388,21 @@ interface DrugResult {
               <input type="text" formControlName="prescriptionRef" placeholder="Rx / OPD ref" />
             </div>
           </div>
+
+          @if (selectedPatient()?.category && selectedPatient()?.category !== 'DIRECT') {
+            <div class="credit-banner">
+              <div class="credit-banner__badge">💳 CREDIT PATIENT</div>
+              <div class="credit-banner__info">
+                <div><b>Category:</b> {{ selectedPatient()?.category }} · <b>Sponsor:</b> {{ selectedPatient()?.sponsorName || selectedPatient()?.organization || 'Corporate / Scheme Sponsor' }}</div>
+                <div class="credit-banner__meta">
+                  @if (selectedPatient()?.policyNumber) { <span><b>Policy / Card:</b> {{ selectedPatient()?.policyNumber }}</span> · }
+                  @if (selectedPatient()?.employeeId) { <span><b>Emp ID:</b> {{ selectedPatient()?.employeeId }}</span> · }
+                  <span><b>Payment Mode:</b> CREDIT (Billed to Sponsor Ledger)</span>
+                  @if (selectedPatient()?.creditLimit) { · <span><b>Credit Limit:</b> ₹{{ selectedPatient()?.creditLimit }}</span> }
+                </div>
+              </div>
+            </div>
+          }
         </div>
 
         <!-- Drug Rows -->
@@ -444,6 +491,7 @@ interface DrugResult {
                 <option value="CASH">Cash</option>
                 <option value="CARD">Card</option>
                 <option value="UPI">UPI</option>
+                <option value="CREDIT">💳 CREDIT (Billed to Sponsor)</option>
               </select>
             </div>
             <div class="checkbox-field">
@@ -516,6 +564,8 @@ export class PharmacySaleFormPage implements OnInit {
   patientSearchResults = signal<any[]>([]);
   private patientSearchTimer: ReturnType<typeof setTimeout> | undefined;
 
+  selectedPatient = signal<any>(null);
+
   subtotal = signal(0);
   gstTotal = signal(0);
   grandTotal = signal(0);
@@ -544,10 +594,20 @@ export class PharmacySaleFormPage implements OnInit {
     this.recalc();
 
     this.route.queryParams.subscribe(params => {
-      if (params['uhid']) {
-        this.saleForm.patchValue({ patientId: params['uhid'] });
-      } else if (params['patientId']) {
-        this.saleForm.patchValue({ patientId: params['patientId'] });
+      const pId = params['patientId'] || params['uhid'];
+      if (pId) {
+        this.saleForm.patchValue({ patientId: pId });
+        this.patientApi.getOne(pId).subscribe({
+          next: (p) => this.selectPatient(p),
+          error: () => {
+            this.patientApi.list({ search: pId, limit: 1 }).subscribe({
+              next: (res) => {
+                const list = res.data ?? res;
+                if (list && list.length > 0) this.selectPatient(list[0]);
+              }
+            });
+          }
+        });
       }
       if (params['patientName']) {
         this.saleForm.patchValue({ patientName: params['patientName'] });
@@ -578,9 +638,17 @@ export class PharmacySaleFormPage implements OnInit {
   }
 
   selectPatient(p: any): void {
+    if (!p) {
+      this.selectedPatient.set(null);
+      return;
+    }
+    this.selectedPatient.set(p);
+    const isCredit = p.category && p.category !== 'DIRECT';
     this.saleForm.patchValue({
       patientName: `${p.firstName} ${p.lastName}`,
-      patientId: p.uhid
+      patientId: p.uhid || p.id,
+      paymentMode: isCredit ? 'CREDIT' : (this.saleForm.value.paymentMode === 'CREDIT' ? 'CASH' : this.saleForm.value.paymentMode),
+      isPaid: !isCredit,
     });
     this.patientSearchResults.set([]);
   }
@@ -681,13 +749,22 @@ export class PharmacySaleFormPage implements OnInit {
         gstPercent: i.gstPercent,
       }));
 
+    const patient = this.selectedPatient();
+    const category = patient?.category || 'DIRECT';
+    const isCredit = category !== 'DIRECT' || formVal.paymentMode === 'CREDIT';
+
     const payload = {
       patientId: formVal.patientId || undefined,
       patientName: formVal.patientName || undefined,
+      patientCategory: category,
+      organizationId: patient?.corporateId || undefined,
+      sponsorName: patient?.sponsorName || patient?.organization || (isCredit ? 'Credit Sponsor' : undefined),
+      policyNumber: patient?.policyNumber || undefined,
+      employeeId: patient?.employeeId || undefined,
       prescriptionRef: formVal.prescriptionRef || undefined,
       items,
-      paymentMode: formVal.paymentMode,
-      isPaid: formVal.isPaid,
+      paymentMode: isCredit ? 'CREDIT' : formVal.paymentMode,
+      isPaid: isCredit ? false : formVal.isPaid,
       discount: Number(formVal.discount) || 0,
       subtotal: this.subtotal(),
       gstTotal: this.gstTotal(),

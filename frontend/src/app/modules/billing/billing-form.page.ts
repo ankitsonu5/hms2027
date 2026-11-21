@@ -5,6 +5,7 @@ import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { BillingApiService } from '../../core/services/billing-api.service';
 import { LabApiService } from '../../core/services/lab-api.service';
 import { OrganizationApiService } from '../../core/services/organization-api.service';
+import { PatientApiService } from '../../core/services/patient-api.service';
 import { PatientPickerComponent } from '../../shared/components/patient-picker.component';
 
 type ItemCategory = 'CONSULTATION' | 'LAB' | 'PHARMACY' | 'PROCEDURE' | 'BED' | 'OTHER';
@@ -383,6 +384,37 @@ type ItemCategory = 'CONSULTATION' | 'LAB' | 'PHARMACY' | 'PROCEDURE' | 'BED' | 
       .dropdown-item:last-child {
         border-bottom: none;
       }
+
+      /* Credit Patient Glowing Banner */
+      .credit-banner {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-3);
+        padding: 12px 16px;
+        background: #fffbeb;
+        border: 1.5px solid #f59e0b;
+        border-radius: var(--radius-md);
+        margin-bottom: var(--sp-4);
+      }
+      .credit-banner__badge {
+        font-size: 11px;
+        font-weight: 700;
+        background: #f59e0b;
+        color: #fff;
+        padding: 4px 8px;
+        border-radius: 4px;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+      }
+      .credit-banner__info {
+        font-size: 13px;
+        color: #92400e;
+      }
+      .credit-banner__meta {
+        font-size: 11.5px;
+        color: #b45309;
+        margin-top: 2px;
+      }
     `,
   ],
   template: `
@@ -418,8 +450,8 @@ type ItemCategory = 'CONSULTATION' | 'LAB' | 'PHARMACY' | 'PROCEDURE' | 'BED' | 
               <div class="field"><div class="label" style="text-transform: uppercase;">BILL ID</div><div class="sep">:</div><div class="value">{{ billId || 'NEW' }}</div></div>
               <div class="field"><div class="label" style="text-transform: uppercase;">UID</div><div class="sep">:</div><div class="value">{{ form.get('patientId')?.value }}</div></div>
               <div class="field"><div class="label" style="text-transform: uppercase;">BILL DATE</div><div class="sep">:</div><div class="value">{{ form.get('billDate')?.value | date:'dd/MM/yy' }}</div></div>
-              <div class="field"><div class="label" style="text-transform: uppercase;">ORGANISATION</div><div class="sep">:</div><div class="value">HMS Hospital</div></div>
-              <div class="field"><div class="label" style="text-transform: uppercase;">PAY TYPE</div><div class="sep">:</div><div class="value">CASH</div></div>
+              <div class="field"><div class="label" style="text-transform: uppercase;">ORGANISATION</div><div class="sep">:</div><div class="value">{{ form.get('sponsorName')?.value || 'HMS Hospital' }}</div></div>
+              <div class="field"><div class="label" style="text-transform: uppercase;">PAY TYPE</div><div class="sep">:</div><div class="value">{{ form.get('paymentMode')?.value || 'CASH' }}</div></div>
             </div>
           </div>
         </div>
@@ -560,6 +592,27 @@ type ItemCategory = 'CONSULTATION' | 'LAB' | 'PHARMACY' | 'PROCEDURE' | 'BED' | 
                     ></textarea>
                   </div>
 
+                  <div class="form-field">
+                    <label class="form-label">Billing Category</label>
+                    <select class="form-control" formControlName="patientCategory" (change)="onCategoryChange()">
+                      <option value="DIRECT">🟢 Direct / Cash</option>
+                      <option value="CORPORATE">🏢 Corporate</option>
+                      <option value="INSURANCE">🛡️ Insurance / TPA</option>
+                      <option value="GOVERNMENT_SCHEME">🏛️ Govt Scheme</option>
+                      <option value="B2B_REFERRAL">🤝 B2B Referral</option>
+                    </select>
+                  </div>
+
+                  <div class="form-field">
+                    <label class="form-label">Payment Mode</label>
+                    <select class="form-control" formControlName="paymentMode">
+                      <option value="CASH">Cash</option>
+                      <option value="UPI">UPI / QR Code</option>
+                      <option value="CARD">Credit / Debit Card</option>
+                      <option value="CREDIT">💳 CREDIT (Billed to Sponsor)</option>
+                    </select>
+                  </div>
+
                   <div class="form-field full">
                     <label class="form-label">Referral Partner / Organization</label>
                     <select class="form-control" formControlName="organizationId" (change)="onOrganizationChange()">
@@ -571,9 +624,15 @@ type ItemCategory = 'CONSULTATION' | 'LAB' | 'PHARMACY' | 'PROCEDURE' | 'BED' | 
                   </div>
                   
                   <div class="form-field">
-                    <label class="form-label">Sponsor (Corporate/Insurance)</label>
-                    <input class="form-control" type="text" formControlName="sponsorName" placeholder="e.g. Tata Motors" />
+                    <label class="form-label">Sponsor / Company Name</label>
+                    <input class="form-control" type="text" formControlName="sponsorName" placeholder="e.g. Tata Motors / Star Health" />
                   </div>
+
+                  <div class="form-field">
+                    <label class="form-label">Policy / Employee ID</label>
+                    <input class="form-control" type="text" formControlName="policyNumber" placeholder="Policy No / Employee ID" />
+                  </div>
+
                   <div class="form-field">
                     <label class="form-label">Claim Status</label>
                     <select class="form-control" formControlName="claimStatus">
@@ -586,6 +645,21 @@ type ItemCategory = 'CONSULTATION' | 'LAB' | 'PHARMACY' | 'PROCEDURE' | 'BED' | 
                     </select>
                   </div>
                 </div>
+
+                @if (form.value.patientCategory && form.value.patientCategory !== 'DIRECT') {
+                  <div class="credit-banner">
+                    <div class="credit-banner__badge">💳 CREDIT PATIENT</div>
+                    <div class="credit-banner__info">
+                      <div><b>Category:</b> {{ form.value.patientCategory }} · <b>Sponsor:</b> {{ form.value.sponsorName || 'Corporate / Scheme Sponsor' }}</div>
+                      <div class="credit-banner__meta">
+                        @if (form.value.policyNumber) { <span><b>Policy / Card:</b> {{ form.value.policyNumber }}</span> · }
+                        @if (form.value.employeeId) { <span><b>Emp ID:</b> {{ form.value.employeeId }}</span> · }
+                        <span><b>Payment Mode:</b> CREDIT (Billed to Sponsor Ledger)</span>
+                        @if (selectedPatient()?.creditLimit) { · <span><b>Credit Limit:</b> ₹{{ selectedPatient()?.creditLimit }}</span> }
+                      </div>
+                    </div>
+                  </div>
+                }
               </div>
 
               <!-- Items -->
@@ -798,6 +872,7 @@ export class BillingFormPage implements OnInit {
   private api = inject(BillingApiService);
   private labApi = inject(LabApiService);
   private orgApi = inject(OrganizationApiService);
+  private patientApi = inject(PatientApiService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private fb = inject(FormBuilder);
@@ -811,6 +886,7 @@ export class BillingFormPage implements OnInit {
 
   organizations = signal<any[]>([]);
   organizationRates = signal<any[]>([]);
+  selectedPatient = signal<any | null>(null);
 
   billSearchTerm = signal('');
   billSearchResults = signal<any[]>([]);
@@ -824,6 +900,11 @@ export class BillingFormPage implements OnInit {
   form: FormGroup = this.fb.group({
     patientId: ['', Validators.required],
     patientName: ['', Validators.required],
+    patientCategory: ['DIRECT'],
+    paymentMode: ['CASH'],
+    policyNumber: [''],
+    employeeId: [''],
+    preAuthNumber: [''],
     billDate: [this._today()],
     notes: [''],
     status: ['DRAFT'],
@@ -853,9 +934,64 @@ export class BillingFormPage implements OnInit {
       this.addRow();
       const patientId = this.route.snapshot.queryParamMap.get('patientId');
       if (patientId) {
-        this.form.patchValue({ patientId });
+        this.patientApi.getOne(patientId).subscribe({
+          next: (patient) => this.applyPatientDetails(patient),
+          error: () => this.form.patchValue({ patientId }),
+        });
       }
     }
+  }
+
+  applyPatientDetails(patient: any) {
+    if (!patient) {
+      this.selectedPatient.set(null);
+      this.form.patchValue({
+        patientName: '',
+        patientCategory: 'DIRECT',
+        organizationId: null,
+        sponsorName: '',
+        paymentMode: 'CASH',
+        policyNumber: '',
+        employeeId: '',
+        claimStatus: null,
+      });
+      return;
+    }
+
+    this.selectedPatient.set(patient);
+    const category = patient.category || 'DIRECT';
+    const isCredit = category !== 'DIRECT';
+    const orgId = patient.corporateId || null;
+    const sponsor = patient.sponsorName || patient.organization || (isCredit ? 'Credit Sponsor' : '');
+
+    this.form.patchValue({
+      patientId: patient.id,
+      patientName: `${patient.firstName} ${patient.lastName}`,
+      patientCategory: category,
+      organizationId: orgId,
+      sponsorName: sponsor,
+      paymentMode: isCredit ? 'CREDIT' : 'CASH',
+      policyNumber: patient.policyNumber || '',
+      employeeId: patient.employeeId || '',
+      claimStatus: isCredit ? 'UNBILLED' : null,
+      status: isCredit ? 'PENDING' : 'DRAFT',
+    });
+
+    if (orgId) {
+      this.orgApi.getRates(orgId).subscribe({
+        next: (rates) => this.organizationRates.set(rates || []),
+        error: () => this.organizationRates.set([]),
+      });
+    }
+  }
+
+  onCategoryChange() {
+    const cat = this.form.value.patientCategory;
+    const isCredit = cat && cat !== 'DIRECT';
+    this.form.patchValue({
+      paymentMode: isCredit ? 'CREDIT' : 'CASH',
+      claimStatus: isCredit ? (this.form.value.claimStatus || 'UNBILLED') : null,
+    });
   }
 
   private loadBill(id: string) {
@@ -865,6 +1001,11 @@ export class BillingFormPage implements OnInit {
         this.form.patchValue({
           patientId: bill.patientId,
           patientName: bill.patientName,
+          patientCategory: bill.patientCategory ?? 'DIRECT',
+          paymentMode: bill.paymentMode ?? 'CASH',
+          policyNumber: bill.policyNumber ?? '',
+          employeeId: bill.employeeId ?? '',
+          preAuthNumber: bill.preAuthNumber ?? '',
           billDate: bill.billDate?.slice(0, 10) ?? this._today(),
           notes: bill.notes ?? '',
           status: bill.status ?? 'DRAFT',
@@ -874,6 +1015,12 @@ export class BillingFormPage implements OnInit {
           sponsorName: bill.sponsorName ?? '',
           claimStatus: bill.claimStatus ?? null,
         });
+        if (bill.patientId) {
+          this.patientApi.getOne(bill.patientId).subscribe({
+            next: (p) => this.selectedPatient.set(p),
+            error: () => {},
+          });
+        }
         if (bill.organizationId) {
           this.orgApi.getRates(bill.organizationId).subscribe(rates => {
             this.organizationRates.set(rates || []);
@@ -896,12 +1043,13 @@ export class BillingFormPage implements OnInit {
   }
 
   onPatientSelected(patient: any) {
-    if (patient) {
-      this.form.patchValue({
-        patientName: `${patient.firstName} ${patient.lastName}`,
+    if (patient?.id) {
+      this.patientApi.getOne(patient.id).subscribe({
+        next: (fullPatient) => this.applyPatientDetails(fullPatient),
+        error: () => this.applyPatientDetails(patient),
       });
     } else {
-      this.form.patchValue({ patientName: '' });
+      this.applyPatientDetails(null);
     }
   }
 
@@ -1071,15 +1219,21 @@ export class BillingFormPage implements OnInit {
       };
     });
 
+    const isCredit = formValue.patientCategory && formValue.patientCategory !== 'DIRECT';
     const body: any = {
       patientId: formValue.patientId,
       patientName: formValue.patientName,
+      patientCategory: formValue.patientCategory || 'DIRECT',
+      paymentMode: formValue.paymentMode || (isCredit ? 'CREDIT' : 'CASH'),
+      employeeId: formValue.employeeId || undefined,
+      policyNumber: formValue.policyNumber || undefined,
+      preAuthNumber: formValue.preAuthNumber || undefined,
       notes: formValue.notes,
       organizationId: formValue.organizationId,
       concessionReason: formValue.concessionReason,
       concessionPercentage: formValue.concessionPercentage,
       sponsorName: formValue.sponsorName,
-      claimStatus: formValue.claimStatus,
+      claimStatus: formValue.claimStatus || (isCredit ? 'UNBILLED' : undefined),
       items: items,
     };
 

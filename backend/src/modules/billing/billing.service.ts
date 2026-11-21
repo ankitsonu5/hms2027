@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Bill, BillItem, BillStatus } from './bill.entity';
+import { Bill, BillItem, BillStatus, ClaimStatus } from './bill.entity';
 import { Payment } from './payment.entity';
 import { CreateBillDto, BillItemDto } from './dto/create-bill.dto';
 import { UpdateBillDto } from './dto/update-bill.dto';
@@ -112,6 +112,24 @@ export class BillingService {
       qb.andWhere('bill.billDate <= :dateTo', { dateTo: query.dateTo });
     }
 
+    if (query.patientCategory) {
+      qb.andWhere('bill.patientCategory = :patientCategory', {
+        patientCategory: query.patientCategory,
+      });
+    }
+
+    if (query.organizationId) {
+      qb.andWhere('bill.organizationId = :organizationId', {
+        organizationId: query.organizationId,
+      });
+    }
+
+    if (query.paymentMode) {
+      qb.andWhere('bill.paymentMode = :paymentMode', {
+        paymentMode: query.paymentMode,
+      });
+    }
+
     const [data, total] = await qb
       .orderBy('bill.createdAt', 'DESC')
       .skip(skip)
@@ -124,15 +142,24 @@ export class BillingService {
   async getCreditOutstanding(tenantId: string) {
     const qb = this.bills
       .createQueryBuilder('bill')
-      .select('bill.sponsorName', 'sponsorName')
-      .addSelect('SUM(bill.balanceAmount)', 'totalOutstanding')
+      .select('COALESCE(bill.sponsorName, \'Credit Sponsor\')', 'sponsorName')
+      .addSelect('COALESCE(bill.patientCategory, \'CORPORATE\')', 'patientCategory')
       .addSelect('COUNT(bill.id)', 'billCount')
+      .addSelect('COALESCE(SUM(bill.balanceAmount), 0)', 'totalOutstanding')
+      .addSelect("COALESCE(SUM(CASE WHEN bill.claimStatus = 'UNBILLED' OR bill.claimStatus IS NULL THEN bill.balanceAmount ELSE 0 END), 0)", 'unbilledAmount')
+      .addSelect("COALESCE(SUM(CASE WHEN bill.claimStatus = 'SUBMITTED' THEN bill.balanceAmount ELSE 0 END), 0)", 'submittedAmount')
+      .addSelect("COALESCE(SUM(CASE WHEN bill.claimStatus = 'APPROVED' THEN bill.balanceAmount ELSE 0 END), 0)", 'approvedAmount')
+      .addSelect("COALESCE(SUM(CASE WHEN bill.claimStatus = 'REJECTED' THEN bill.balanceAmount ELSE 0 END), 0)", 'rejectedAmount')
+      .addSelect("COALESCE(SUM(CASE WHEN bill.claimStatus = 'SETTLED' THEN bill.paidAmount ELSE 0 END), 0)", 'settledAmount')
       .where('bill.tenantId = :tenantId', { tenantId })
       .andWhere('bill.isActive = true')
-      .andWhere('bill.balanceAmount > 0')
-      .andWhere('bill.sponsorName IS NOT NULL')
-      .groupBy('bill.sponsorName')
-      .orderBy('SUM(bill.balanceAmount)', 'DESC');
+      .andWhere('(bill.sponsorName IS NOT NULL OR bill.patientCategory != :directCat OR bill.paymentMode = :creditMode)', {
+        directCat: 'DIRECT',
+        creditMode: 'CREDIT',
+      })
+      .groupBy('COALESCE(bill.sponsorName, \'Credit Sponsor\')')
+      .addGroupBy('COALESCE(bill.patientCategory, \'CORPORATE\')')
+      .orderBy('COALESCE(SUM(bill.balanceAmount), 0)', 'DESC');
 
     return qb.getRawMany();
   }
@@ -153,10 +180,23 @@ export class BillingService {
       this.calculateTotals(dto.items);
     const mappedItems = this.mapItemsWithAmount(dto.items);
 
+    const isCredit = dto.patientCategory && dto.patientCategory !== 'DIRECT';
+    const paymentMode = dto.paymentMode || (isCredit ? 'CREDIT' : 'CASH');
+    const claimStatus = dto.claimStatus
+      ? (dto.claimStatus as any)
+      : isCredit
+        ? ClaimStatus.UNBILLED
+        : undefined;
+
     const bill = this.bills.create({
       tenantId,
       patientId: dto.patientId,
       patientName: dto.patientName,
+      patientCategory: dto.patientCategory,
+      employeeId: dto.employeeId,
+      policyNumber: dto.policyNumber,
+      preAuthNumber: dto.preAuthNumber,
+      paymentMode,
       billNumber,
       items: mappedItems,
       subtotal,
@@ -173,8 +213,8 @@ export class BillingService {
       concessionReason: dto.concessionReason,
       concessionPercentage: dto.concessionPercentage,
       sponsorName: dto.sponsorName,
-      claimStatus: dto.claimStatus as any,
-      status: BillStatus.DRAFT,
+      claimStatus,
+      status: isCredit ? BillStatus.PENDING : BillStatus.DRAFT,
     });
 
     return this.bills.save(bill);

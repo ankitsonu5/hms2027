@@ -12,6 +12,12 @@ interface Bill {
   billNumber: string;
   patientId: string;
   patientName: string;
+  patientCategory?: string;
+  sponsorName?: string;
+  organizationId?: string;
+  paymentMode?: string;
+  policyNumber?: string;
+  employeeId?: string;
   billDate: string;
   grandTotal: number;
   paidAmount: number;
@@ -307,6 +313,20 @@ interface Bill {
         color: var(--clr-neutral-400);
         font-size: var(--text-sm);
       }
+
+      .badge-cat-pill {
+        display: inline-block;
+        font-size: 10.5px;
+        font-weight: 600;
+        padding: 2px 6px;
+        border-radius: 10px;
+        margin-top: 3px;
+      }
+      .badge-cat--direct { background: #dcfce7; color: #15803d; }
+      .badge-cat--corporate { background: #dbeafe; color: #1d4ed8; }
+      .badge-cat--insurance { background: #f3e8ff; color: #7e22ce; }
+      .badge-cat--scheme { background: #fef3c7; color: #b45309; }
+      .badge-cat--b2b { background: #cffafe; color: #0e7490; }
     `,
   ],
   template: `
@@ -402,6 +422,19 @@ interface Bill {
           />
           <select
             class="filter-btn"
+            [formControl]="filterForm.controls['category']"
+            (change)="load()"
+            style="appearance: none; padding-right: 24px; background: #f8f9fa url('data:image/svg+xml;utf8,<svg fill=%22black%22 height=%2224%22 viewBox=%220 0 24 24%22 width=%2224%22 xmlns=%22http://www.w3.org/2000/svg%22><path d=%22M7 10l5 5 5-5z%22/></svg>') no-repeat right 4px center;"
+          >
+            <option value="">All Categories</option>
+            <option value="DIRECT">🟢 Direct / Cash</option>
+            <option value="CORPORATE">🏢 Corporate</option>
+            <option value="INSURANCE">🛡️ Insurance / TPA</option>
+            <option value="GOVERNMENT_SCHEME">🏛️ Govt Scheme</option>
+            <option value="B2B_REFERRAL">🤝 B2B Referral</option>
+          </select>
+          <select
+            class="filter-btn"
             [formControl]="filterForm.controls['status']"
             (change)="load()"
             style="appearance: none; padding-right: 24px; background: #f8f9fa url('data:image/svg+xml;utf8,<svg fill=%22black%22 height=%2224%22 viewBox=%220 0 24 24%22 width=%2224%22 xmlns=%22http://www.w3.org/2000/svg%22><path d=%22M7 10l5 5 5-5z%22/></svg>') no-repeat right 4px center;"
@@ -438,7 +471,7 @@ interface Bill {
                   <tr>
                     <th>Bill Id</th>
                     <th>Patient Details</th>
-                    <th>Referral</th>
+                    <th>Referral / Sponsor</th>
                     <th>Department</th>
                     <th>Bill Date</th>
                     <th>Bill Amount</th>
@@ -461,13 +494,21 @@ interface Bill {
                       </td>
                       <td>
                         <div class="patient-name">{{ bill.patientName }}</div>
+                        @if (bill.patientCategory && bill.patientCategory !== 'DIRECT') {
+                          <span class="badge-cat-pill" [ngClass]="getCategoryBadgeClass(bill.patientCategory)">
+                            {{ getCategoryBadgeLabel(bill) }}
+                          </span>
+                        }
                       </td>
-                      <td>—</td>
+                      <td>{{ bill.sponsorName || '—' }}</td>
                       <td>{{ getDepartments(bill) }}</td>
                       <td>{{ bill.billDate | date: 'E MMM dd yyyy' }}</td>
                       <td class="amount amount-grand">{{ bill.grandTotal | number: '1.2-2' }}</td>
                       <td class="amount">{{ bill.balanceAmount | number: '1.2-2' }}</td>
                       <td>
+                        @if (bill.paymentMode === 'CREDIT') {
+                          <span class="badge" style="background:#fef3c7; color:#b45309; margin-right: 4px;">CREDIT</span>
+                        }
                         @if (isUpdated(bill)) {
                           <span class="badge badge-info" style="margin-right: 4px;">Updated</span>
                         }
@@ -565,29 +606,47 @@ interface Bill {
                 <thead>
                   <tr>
                     <th>Sponsor Name</th>
+                    <th>Category</th>
+                    <th>Bills</th>
                     <th>Unbilled Amount</th>
                     <th>Submitted Amount</th>
                     <th>Approved Amount</th>
                     <th>Rejected Amount</th>
                     <th>Settled Amount</th>
+                    <th>Total Due</th>
                   </tr>
                 </thead>
                 <tbody>
                   @if (creditReports().length === 0) {
                     <tr>
-                      <td colspan="6">
+                      <td colspan="9">
                         <div class="empty-state">No credit outstanding records found.</div>
                       </td>
                     </tr>
                   }
-                  @for (report of creditReports(); track report.sponsorName) {
+                  @for (report of creditReports(); track report.sponsorName + (report.patientCategory || '')) {
                     <tr>
                       <td><strong>{{ report.sponsorName || 'Unknown Sponsor' }}</strong></td>
+                      <td>
+                        @if (report.patientCategory === 'CORPORATE') {
+                          <span class="badge" style="background:#e0f2fe;color:#0369a1;font-weight:600">🏢 Corporate</span>
+                        } @else if (report.patientCategory === 'INSURANCE') {
+                          <span class="badge" style="background:#fef3c7;color:#b45309;font-weight:600">🛡️ Insurance</span>
+                        } @else if (report.patientCategory === 'GOVERNMENT_SCHEME') {
+                          <span class="badge" style="background:#f3e8ff;color:#7e22ce;font-weight:600">🏛️ Scheme</span>
+                        } @else if (report.patientCategory === 'B2B_REFERRAL') {
+                          <span class="badge" style="background:#ffedd5;color:#c2410c;font-weight:600">🤝 B2B</span>
+                        } @else {
+                          <span class="badge badge-neutral">{{ report.patientCategory || 'Direct' }}</span>
+                        }
+                      </td>
+                      <td>{{ report.billCount }}</td>
                       <td class="amount text-warning">₹{{ report.unbilledAmount | number: '1.2-2' }}</td>
                       <td class="amount text-info">₹{{ report.submittedAmount | number: '1.2-2' }}</td>
                       <td class="amount text-success">₹{{ report.approvedAmount | number: '1.2-2' }}</td>
                       <td class="amount text-danger">₹{{ report.rejectedAmount | number: '1.2-2' }}</td>
                       <td class="amount text-primary">₹{{ report.settledAmount | number: '1.2-2' }}</td>
+                      <td class="amount" style="font-weight:bold; color:var(--clr-primary-700)">₹{{ report.totalOutstanding | number: '1.2-2' }}</td>
                     </tr>
                   }
                 </tbody>
@@ -618,6 +677,7 @@ export class BillingListPage implements OnInit {
 
   filterForm = this.fb.group({
     status: [''],
+    category: [''],
     search: [''],
     date: [''],
   });
@@ -627,6 +687,26 @@ export class BillingListPage implements OnInit {
     amount: [null as number | null, [this._positiveValidator]],
     transactionRef: [''],
   });
+
+  getCategoryBadgeClass(category?: string): string {
+    switch (category) {
+      case 'CORPORATE': return 'badge-cat--corporate';
+      case 'INSURANCE': return 'badge-cat--insurance';
+      case 'GOVERNMENT_SCHEME': return 'badge-cat--scheme';
+      case 'B2B_REFERRAL': return 'badge-cat--b2b';
+      default: return 'badge-cat--direct';
+    }
+  }
+
+  getCategoryBadgeLabel(bill: Bill): string {
+    switch (bill.patientCategory) {
+      case 'CORPORATE': return `🏢 Corporate${bill.sponsorName ? ' · ' + bill.sponsorName : ''}`;
+      case 'INSURANCE': return `🛡️ Insurance${bill.sponsorName ? ' · ' + bill.sponsorName : ''}`;
+      case 'GOVERNMENT_SCHEME': return `🏛️ Scheme${bill.sponsorName ? ' · ' + bill.sponsorName : ''}`;
+      case 'B2B_REFERRAL': return `🤝 B2B${bill.sponsorName ? ' · ' + bill.sponsorName : ''}`;
+      default: return '🟢 Direct';
+    }
+  }
 
   subtotal(bill: Bill): number {
     return (bill.items || []).reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
@@ -700,10 +780,11 @@ export class BillingListPage implements OnInit {
   load() {
     this.loading.set(true);
     this.errorMsg.set('');
-    const { status, search, date } = this.filterForm.value;
+    const { status, search, date, category } = this.filterForm.value;
     const q: Record<string, any> = {};
     if (status) q['status'] = status;
     if (search) q['search'] = search;
+    if (category) q['patientCategory'] = category;
     if (date) {
       q['dateFrom'] = date;
       q['dateTo'] = date;

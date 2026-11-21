@@ -1,7 +1,9 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { debounceTime, distinctUntilChanged } from 'rxjs';
 import { PatientApiService } from '../../core/services/patient-api.service';
 
 @Component({
@@ -256,8 +258,37 @@ import { PatientApiService } from '../../core/services/patient-api.service';
         gap: var(--sp-3);
         align-items: center;
       }
-      .search-input {
+      .search-input-wrap {
         flex: 1;
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+      .search-input-wrap .search-input {
+        width: 100%;
+        padding-right: 32px;
+      }
+      .search-clear-btn {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        font-size: 14px;
+        line-height: 1;
+        padding: 4px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 150ms ease;
+      }
+      .search-clear-btn:hover {
+        background: var(--bg-muted);
+        color: var(--text-primary);
       }
       .table-wrap {
         overflow-x: auto;
@@ -371,6 +402,10 @@ import { PatientApiService } from '../../core/services/patient-api.service';
                 <b>Pharmacy</b>
                 <span>Dispense & billing</span>
               </button>
+              <button type="button" class="service" style="border-left: 3px solid #6366f1;" (click)="goService('ipd', selectedForBill())">
+                <b>🏥 IPD / Inpatient</b>
+                <span>Admission & bed allocation</span>
+              </button>
               <button type="button" class="service" (click)="goService('home_collection', selectedForBill())">
                 <b>Home Collection</b>
                 <span>Schedule sample pickup</span>
@@ -388,12 +423,25 @@ import { PatientApiService } from '../../core/services/patient-api.service';
       <div class="card">
         <div class="card__body">
           <form [formGroup]="searchForm" (ngSubmit)="onSearch()" class="search-bar">
-            <input
-              class="form-control search-input"
-              formControlName="search"
-              type="text"
-              placeholder="Search by name, UHID, phone…"
-            />
+            <div class="search-input-wrap">
+              <input
+                class="form-control search-input"
+                formControlName="search"
+                type="text"
+                placeholder="Search by name, UHID, phone…"
+                (keydown.escape)="clearSearch()"
+              />
+              @if (searchForm.get('search')?.value) {
+                <button
+                  type="button"
+                  class="search-clear-btn"
+                  (click)="clearSearch()"
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              }
+            </div>
             <select class="form-control" style="width:200px" formControlName="category">
               <option value="">All Categories</option>
               <option value="DIRECT">Direct</option>
@@ -443,6 +491,14 @@ import { PatientApiService } from '../../core/services/patient-api.service';
                           >Start OPD</a
                         >
                         <button class="btn btn-primary btn-sm" style="background: var(--clr-success-600)" (click)="openBillModal(p)">Bill</button>
+                        <a
+                          class="btn btn-sm"
+                          style="background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe; font-weight: 600;"
+                          [routerLink]="['/ipd/admit']"
+                          [queryParams]="{ patientId: p.id, uhid: p.uhid }"
+                          title="Direct Inpatient Admission"
+                          >IPD</a
+                        >
                         <a class="btn btn-secondary btn-sm" [routerLink]="[p.id, 'edit']">Edit</a>
                         <button class="btn btn-danger btn-sm" (click)="onDelete(p.id)">
                           Delete
@@ -486,6 +542,7 @@ export class PatientListPage implements OnInit {
   private svc = inject(PatientApiService);
   private fb = inject(FormBuilder);
   private router = inject(Router);
+  private destroyRef = inject(DestroyRef);
 
   patients = signal<any[]>([]);
   total = signal(0);
@@ -501,6 +558,27 @@ export class PatientListPage implements OnInit {
 
   ngOnInit(): void {
     this.load();
+
+    this.searchForm.get('search')?.valueChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(() => {
+        this.page.set(1);
+        this.load();
+      });
+
+    this.searchForm.get('category')?.valueChanges
+      .pipe(
+        distinctUntilChanged(),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(() => {
+        this.page.set(1);
+        this.load();
+      });
   }
 
   load(): void {
@@ -518,6 +596,12 @@ export class PatientListPage implements OnInit {
   }
 
   onSearch(): void {
+    this.page.set(1);
+    this.load();
+  }
+
+  clearSearch(): void {
+    this.searchForm.patchValue({ search: '' }, { emitEvent: false });
     this.page.set(1);
     this.load();
   }
@@ -556,7 +640,10 @@ export class PatientListPage implements OnInit {
   }
 
   goService(serviceKey: string, p: any): void {
-    if (serviceKey === 'lab') {
+    if (serviceKey === 'ipd') {
+      this.closeBillModal();
+      this.router.navigate(['/ipd/admit'], { queryParams: { patientId: p.id, uhid: p.uhid, patientName: `${p.firstName || ''} ${p.lastName || ''}`.trim() } });
+    } else if (serviceKey === 'lab') {
       this.router.navigate(['/laboratory/order/new'], { queryParams: { patientId: p.id, uhid: p.uhid } });
     } else if (serviceKey === 'pharmacy') {
       this.router.navigate(['/pharmacy/sale/new'], { queryParams: { patientId: p.id, uhid: p.uhid, patientName: p.firstName + ' ' + p.lastName } });

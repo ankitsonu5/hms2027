@@ -36,6 +36,8 @@ const ROUTE_TITLES: Record<string, string> = {
   inventory: 'Inventory',
   compliance: 'Compliance',
   reports: 'Reports & MIS',
+  department: 'Department Management',
+  'smart-report-settings': 'Smart Report Settings',
 };
 
 const NAV_SECTIONS: NavSection[] = [{ title: '', items: ADMIN_ITEMS }];
@@ -60,8 +62,8 @@ const NAV_SECTIONS: NavSection[] = [{ title: '', items: ADMIN_ITEMS }];
       />
       <hms-topbar
         [pageTitle]="pageTitle()"
-        userName="Dr. Krishna"
-        userRole="Administrator"
+        userName="Dr Krishna Prasad"
+        userRole="#1587 – Access Path Lab..."
         userInitials="DK"
         (menuToggle)="sidebarMobileOpen.set(!sidebarMobileOpen())"
       />
