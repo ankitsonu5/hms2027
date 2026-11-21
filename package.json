@@ -1,0 +1,27 @@
+{
+  "name": "hms2027",
+  "version": "1.0.0",
+  "description": "Enterprise Hospital Management System (HMS) - Full-stack Angular 22 & NestJS 11 Solution",
+  "private": true,
+  "scripts": {
+    "start:backend": "npm --prefix backend run start:dev",
+    "start:frontend": "npm --prefix frontend run start",
+    "build:backend": "npm --prefix backend run build",
+    "build:frontend": "npm --prefix frontend run build",
+    "build": "npm run build:frontend && npm run build:backend",
+    "lint:backend": "npm --prefix backend run lint",
+    "test:backend": "npm --prefix backend run test",
+    "start:prod": "node backend/dist/main"
+  },
+  "keywords": [
+    "hospital-management-system",
+    "hms",
+    "nestjs",
+    "angular",
+    "typeorm",
+    "postgresql",
+    "healthcare"
+  ],
+  "author": "Ayush Kushwaha",
+  "license": "UNLICENSED"
+}

@@ -16,7 +16,6 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { OrganizationModule } from './modules/organization/organization.module';
 import { PhlebotomistModule } from './modules/phlebotomist/phlebotomist.module';
 import { DepartmentModule } from './modules/department/department.module';
-
 function getClientPath(): string {
   const candidates = [
     join(__dirname, '..', 'client', 'browser'),
@@ -85,3 +84,5 @@ function getClientPath(): string {
   ],
 })
 export class AppModule {}
+// reload trigger
+
