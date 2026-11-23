@@ -29,11 +29,16 @@ export class LaboratoryService {
     limit = 20,
     search?: string,
     category?: string,
-    isActive?: boolean
+    isActive?: boolean,
+    testType?: string,
   ): Promise<{ data: LabTest[]; total: number; page: number; limit: number }> {
     const qb = this.labTestRepo
       .createQueryBuilder('t')
       .where('t.tenantId = :tenantId', { tenantId });
+
+    if (testType) {
+      qb.andWhere('t.testType IN (:...types)', { types: testType.split(',') });
+    }
 
     if (isActive !== undefined) {
       qb.andWhere('t.isActive = :isActive', { isActive });
@@ -42,7 +47,7 @@ export class LaboratoryService {
     }
 
     if (search) {
-      qb.andWhere('(t.name ILIKE :search OR t.code ILIKE :search)', {
+      qb.andWhere('(t.name ILIKE :search OR t.code ILIKE :search OR t.category ILIKE :search OR t.testAlias ILIKE :search)', {
         search: `%${search}%`,
       });
     }
@@ -56,6 +61,14 @@ export class LaboratoryService {
       .take(limit);
 
     const [data, total] = await qb.getManyAndCount();
+    if (data.length) {
+      const counts: { testId: string; n: string }[] = await this.labTestRepo.manager.query(
+        `SELECT "testId", COUNT(*) AS n FROM lab_test_parameters WHERE "testId" = ANY($1) GROUP BY "testId"`,
+        [data.map((t) => t.id)],
+      );
+      const byId = new Map(counts.map((c) => [c.testId, Number(c.n)]));
+      for (const t of data as any[]) t.paramCount = byId.get(t.id) ?? 0;
+    }
     return { data, total, page, limit };
   }
 

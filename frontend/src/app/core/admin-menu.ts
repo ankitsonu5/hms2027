@@ -64,7 +64,7 @@ export const ADMIN_MENU: AdminGroup[] = [
       { label: 'Cancelled Tests', path: 'cancelled-tests' },
       { label: 'Reflex Testing Configuration', path: 'reflex-testing' },
       { label: 'Dictionary Mapping', path: 'dictionary-mapping' },
-      { label: 'Other Settings', path: 'other-settings' },
+      { label: 'Units & Masters', path: 'other-settings' },
     ],
   },
   {

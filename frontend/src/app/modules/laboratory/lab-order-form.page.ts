@@ -6,11 +6,12 @@ import { LabApiService } from '../../core/services/lab-api.service';
 import { PatientApiService } from '../../core/services/patient-api.service';
 import { OrganizationApiService } from '../../core/services/organization-api.service';
 import { PatientPickerComponent } from '../../shared/components/patient-picker.component';
+import { DoctorPickerComponent } from '../../shared/components/doctor-picker.component';
 
 @Component({
   selector: 'hms-lab-order-form',
   standalone: true,
-  imports: [CommonModule, RouterModule, ReactiveFormsModule, FormsModule, PatientPickerComponent],
+  imports: [CommonModule, RouterModule, ReactiveFormsModule, FormsModule, PatientPickerComponent, DoctorPickerComponent],
   styles: [
     `
       .page-wrap {
@@ -388,19 +389,10 @@ import { PatientPickerComponent } from '../../shared/components/patient-picker.c
               }
             </div>
             <div class="form-group">
-              <label class="form-label">Doctor ID</label>
-              <input
-                class="form-control"
-                formControlName="orderedByDoctorId"
-                placeholder="e.g. DOC-001"
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Doctor Name</label>
-              <input
-                class="form-control"
+              <label class="form-label">Referred by (Doctor)</label>
+              <hms-doctor-picker
                 formControlName="orderedByDoctorName"
-                placeholder="e.g. Dr. Sharma"
+                (picked)="orderForm.patchValue({ orderedByDoctorId: $event?.id ?? '' })"
               />
             </div>
             <div class="form-group">

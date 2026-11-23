@@ -756,3 +756,11 @@ label,
   color: var(--text-secondary);
   margin-top: var(--sp-1);
 }
+
+// Printed pages always on white paper.
+@media print {
+  html,
+  body {
+    background: #fff !important;
+  }
+}

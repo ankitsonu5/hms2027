@@ -1,0 +1,241 @@
+<div class="re-page">
+  <div class="re-top">
+    <button type="button" class="back" (click)="back()">← Lab orders</button>
+    <h1>Result entry</h1>
+    @if (order(); as o) {
+      <span class="status s-{{ o.status }}">{{ statusLabel(o.status) }}</span>
+      @if (o.approvedAt) {
+        <span class="approved"
+          >✓ Approved by {{ o.approvedByName }} · {{ o.approvedAt | date: 'dd MMM, h:mm a' }}</span
+        >
+      }
+    }
+  </div>
+
+  @if (error()) {
+    <div class="alert err">{{ error() }}</div>
+  }
+  @if (notice()) {
+    <div class="alert ok">{{ notice() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="card pad muted">Loading…</div>
+  } @else {
+    @if (patient(); as pt) {
+      <div class="card pinfo">
+        <div>
+          <span>Patient</span><strong>{{ pt.name }}</strong>
+        </div>
+        <div>
+          <span>Age / Gender</span><strong>{{ pt.ageText || '—' }} / {{ pt.gender }}</strong>
+        </div>
+        <div>
+          <span>UHID</span><strong>{{ pt.uhid }}</strong>
+        </div>
+        <div>
+          <span>Lab no.</span><strong>{{ order()?.labNo }}</strong>
+        </div>
+        <div>
+          <span>Referred by</span
+          ><strong>{{ order()?.orderedByDoctorName || pt.referredByDoctorName || 'Self' }}</strong>
+        </div>
+        <div>
+          <span>Registered</span
+          ><strong>{{ order()?.createdAt | date: 'dd MMM yyyy, h:mm a' }}</strong>
+        </div>
+      </div>
+    }
+
+    <div class="summary">
+      <span>{{ progress().done }} / {{ progress().total }} required results entered</span>
+      @if (abnormalCount()) {
+        <span class="abn-count">{{ abnormalCount() }} abnormal</span>
+      }
+      <span class="hint">Enter / ↓ next · ↑ previous · formula results fill in automatically</span>
+    </div>
+
+    <div class="card">
+      <table class="grid">
+        <thead>
+          <tr>
+            <th class="c-name">Test / parameter</th>
+            <th class="c-val">Result</th>
+            <th class="c-flag">Flag</th>
+            <th class="c-unit">Unit</th>
+            <th class="c-range">Normal value</th>
+            <th class="c-hide" title="Hide in print">Hide</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of rows(); track $index) {
+            @switch (r.kind) {
+              @case ('category') {
+                <tr class="r-cat">
+                  <td colspan="6">{{ r.label }}</td>
+                </tr>
+              }
+              @case ('test') {
+                <tr class="r-test" [class.hidden-row]="testHidden(r.test!)">
+                  <td colspan="5">
+                    {{ r.test!.testName }}
+                    @if (r.test!.panelName) {
+                      <span class="tag">{{ r.test!.panelName }}</span>
+                    }
+                    @if (r.test!.method) {
+                      <span class="meta">Method: {{ r.test!.method }}</span>
+                    }
+                    @if (r.test!.sampleType) {
+                      <span class="meta">Sample: {{ r.test!.sampleType }}</span>
+                    }
+                    @if (r.test!.isOutsourced) {
+                      <span class="tag out"
+                        >Outsourced{{
+                          r.test!.outsourceCenter ? ' · ' + r.test!.outsourceCenter : ''
+                        }}</span
+                      >
+                    }
+                  </td>
+                  <td class="c-hide">
+                    <input
+                      type="checkbox"
+                      title="Hide this test in print"
+                      [checked]="testHidden(r.test!)"
+                      (change)="setTestHidden(r.test!, $any($event.target).checked)"
+                    />
+                  </td>
+                </tr>
+              }
+              @case ('group') {
+                <tr class="r-group">
+                  <td colspan="6">{{ r.label }}</td>
+                </tr>
+              }
+              @case ('param') {
+                @let p = r.param!;
+                @let t = r.test!;
+                <tr class="r-param {{ flagClass(p) }}" [class.hidden-row]="p.hideInPrint">
+                  <td class="c-name" [class.indent]="!!p.groupBy">
+                    <span [class.bold]="p.isBold">{{ p.name }}</span>
+                    @if (p.isOptional) {
+                      <span class="opt">optional</span>
+                    }
+                    @if (p.method && p.method !== t.method) {
+                      <div class="pmethod">{{ p.method }}</div>
+                    }
+                  </td>
+                  <td class="c-val">
+                    @switch (p.resultType) {
+                      @case ('FORMULA') {
+                        <input
+                          class="inp calc"
+                          [value]="p.value ?? ''"
+                          readonly
+                          tabindex="-1"
+                          title="{{ p.formula }}"
+                        />
+                      }
+                      @case ('DROPDOWN') {
+                        <select
+                          class="inp"
+                          data-result-input
+                          [ngModel]="p.value ?? ''"
+                          (ngModelChange)="onValue(t, p, $event)"
+                          (keydown)="onKey($event, p)"
+                        >
+                          <option value=""></option>
+                          @for (o of p.options ?? []; track o) {
+                            <option [value]="o">{{ o }}</option>
+                          }
+                        </select>
+                      }
+                      @case ('MULTI_SELECT') {
+                        <div class="multi">
+                          @for (o of p.options ?? []; track o) {
+                            <label
+                              ><input
+                                type="checkbox"
+                                [checked]="isPicked(p, o)"
+                                (change)="toggleMulti(t, p, o, $any($event.target).checked)"
+                              />
+                              {{ o }}</label
+                            >
+                          }
+                        </div>
+                      }
+                      @default {
+                        @if (p.inputType === 'PARAGRAPH') {
+                          <textarea
+                            class="inp para"
+                            rows="5"
+                            data-result-input
+                            [ngModel]="p.value ?? ''"
+                            (ngModelChange)="onValue(t, p, $event)"
+                            (keydown)="onKey($event, p)"
+                          ></textarea>
+                        } @else {
+                          <input
+                            class="inp"
+                            data-result-input
+                            [attr.inputmode]="p.inputType === 'NUMERIC' ? 'decimal' : null"
+                            [ngModel]="p.value ?? ''"
+                            (ngModelChange)="onValue(t, p, $event)"
+                            (keydown)="onKey($event, p)"
+                          />
+                        }
+                      }
+                    }
+                  </td>
+                  <td class="c-flag">
+                    @if (flagOf(p) && flagOf(p) !== 'NORMAL') {
+                      <span class="flag {{ flagClass(p) }}">{{ flagLabel[flagOf(p)] }}</span>
+                    } @else if (flagOf(p) === 'NORMAL') {
+                      <span class="ok-dot" title="Normal">✓</span>
+                    }
+                  </td>
+                  <td class="c-unit">{{ p.unit }}</td>
+                  <td class="c-range">
+                    {{ p.rangeText }}
+                    @if (p.remark) {
+                      <div class="remark">{{ p.remark }}</div>
+                    }
+                  </td>
+                  <td class="c-hide">
+                    <input
+                      type="checkbox"
+                      [checked]="p.hideInPrint"
+                      (change)="setHidden(p, $any($event.target).checked)"
+                    />
+                  </td>
+                </tr>
+              }
+            }
+          } @empty {
+            <tr>
+              <td colspan="6" class="muted pad">This order has no tests.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="re-actions">
+      <button type="button" class="btn btn-secondary" (click)="back()">Cancel</button>
+      <button type="button" class="btn btn-secondary" (click)="openPrint()">Preview / print</button>
+      @if (order()?.approvedAt) {
+        <button type="button" class="btn btn-secondary" (click)="unapprove()">
+          Remove approval
+        </button>
+      }
+      <button type="button" class="btn btn-secondary" [disabled]="saving()" (click)="save()">
+        {{ saving() ? 'Saving…' : 'Save' }}
+      </button>
+      <button type="button" class="btn btn-secondary" [disabled]="saving()" (click)="save('print')">
+        Save &amp; print
+      </button>
+      <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="save('approve')">
+        Save &amp; approve
+      </button>
+    </div>
+  }
+</div>

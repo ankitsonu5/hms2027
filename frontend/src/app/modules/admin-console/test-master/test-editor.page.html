@@ -1,0 +1,722 @@
+<div class="te-page">
+  <div class="te-top">
+    <a [routerLink]="listUrl" class="back">← Test list</a>
+    <h1>{{ isNew() ? 'Add test' : form().name || 'Edit test' }}</h1>
+    @if (type()) {
+      <span class="type-pill">{{ type() }}</span>
+    }
+  </div>
+
+  @if (error()) {
+    <div class="alert alert-error">{{ error() }}</div>
+  }
+  @if (notice()) {
+    <div class="alert alert-ok">{{ notice() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="card pad muted">Loading…</div>
+  } @else if (!type()) {
+    <!-- Step 1: choose the report structure -->
+    <div class="card pad">
+      <h2 class="sec-title">What kind of test is this?</h2>
+      <div class="type-grid">
+        @for (c of typeCards; track c.type) {
+          <button type="button" class="type-card" (click)="chooseType(c.type)">
+            <span class="tc-title">{{ c.title }}</span>
+            <span class="tc-text">{{ c.text }}</span>
+            <span class="tc-eg">e.g. {{ c.example }}</span>
+          </button>
+        }
+      </div>
+    </div>
+  } @else {
+    <!-- Test details -->
+    <section class="card pad">
+      <div class="sec-head">
+        <h2 class="sec-title">Test details</h2>
+        @if (type() !== 'PANEL') {
+          <label class="inline">
+            Report type
+            <select class="form-control sm" [ngModel]="type()" (ngModelChange)="changeType($event)">
+              <option value="SINGLE">Single parameter</option>
+              <option value="MULTIPLE">Multiple parameters</option>
+              <option value="NESTED">Multiple nested parameters</option>
+              <option value="DOCUMENT">Document</option>
+            </select>
+          </label>
+        }
+      </div>
+
+      <div class="grid g3">
+        <label class="span2"
+          >Test name *
+          <input
+            class="form-control"
+            [ngModel]="form().name"
+            (ngModelChange)="onNameChange($event)"
+            placeholder="e.g. COMPLETE BLOOD COUNT (CBC)"
+          />
+        </label>
+        <label
+          >Test code
+          <input
+            class="form-control"
+            [ngModel]="form().code"
+            (ngModelChange)="patch({ code: $event })"
+            placeholder="e.g. CBC"
+          />
+        </label>
+
+        <label
+          >Department / Category *
+          <div class="with-add">
+            <select
+              class="form-control"
+              [ngModel]="form().category"
+              (ngModelChange)="patch({ category: $event })"
+            >
+              <option value="">Select…</option>
+              @for (c of categories(); track c.id) {
+                <option [value]="c.name">{{ c.name }}</option>
+              }
+              @if (form().category && !categories().some((c) => c.name === form().category)) {
+                <option [value]="form().category">{{ form().category }}</option>
+              }
+            </select>
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm"
+              (click)="addMaster('CATEGORY', 'department / category', patchCategory)"
+            >
+              + New
+            </button>
+          </div>
+        </label>
+        <label
+          >Price (₹) *
+          <input
+            class="form-control"
+            type="number"
+            min="0"
+            [ngModel]="form().price"
+            (ngModelChange)="patch({ price: $event })"
+          />
+        </label>
+        <label
+          >Short name / alias
+          <input
+            class="form-control"
+            [ngModel]="form().testAlias"
+            (ngModelChange)="patch({ testAlias: $event })"
+            placeholder="Used in search"
+          />
+        </label>
+
+        @if (type() !== 'PANEL') {
+          <label
+            >Method
+            <input
+              class="form-control"
+              list="dl-methods"
+              [ngModel]="form().method"
+              (ngModelChange)="patch({ method: $event })"
+              placeholder="Printed on the report"
+            />
+          </label>
+          <label
+            >Instrument
+            <input
+              class="form-control"
+              [ngModel]="form().instrument"
+              (ngModelChange)="patch({ instrument: $event })"
+              placeholder="optional"
+            />
+          </label>
+          <label class="chk-label">
+            <span>Outsourced test</span>
+            <span class="chk"
+              ><input
+                type="checkbox"
+                [ngModel]="form().isOutsourced"
+                (ngModelChange)="patch({ isOutsourced: $event })"
+              />
+              Performed at another lab (report PDF is uploaded)</span
+            >
+          </label>
+          @if (form().isOutsourced) {
+            <label
+              >Outsource center *
+              <div class="with-add">
+                <select
+                  class="form-control"
+                  [ngModel]="form().outsourceCenter"
+                  (ngModelChange)="patch({ outsourceCenter: $event })"
+                >
+                  <option value="">Select…</option>
+                  @for (c of outsourceCenters(); track c.id) {
+                    <option [value]="c.name">{{ c.name }}</option>
+                  }
+                  @if (
+                    form().outsourceCenter &&
+                    !outsourceCenters().some((c) => c.name === form().outsourceCenter)
+                  ) {
+                    <option [value]="form().outsourceCenter">{{ form().outsourceCenter }}</option>
+                  }
+                </select>
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  (click)="
+                    addMaster('OUTSOURCE_CENTER', 'outsource center (lab name)', patchCenter)
+                  "
+                >
+                  + New
+                </button>
+              </div>
+            </label>
+          }
+
+          <div class="span3">
+            <span class="lbl">Sample type</span>
+            <div class="chips">
+              @for (s of sampleTypes(); track s.id) {
+                <button
+                  type="button"
+                  class="chip"
+                  [class.on]="form().sampleTypes.includes(s.name)"
+                  (click)="toggleSample(s.name)"
+                >
+                  {{ s.name }}
+                </button>
+              }
+              @for (s of form().sampleTypes; track s) {
+                @if (!sampleTypes().some((x) => x.name === s)) {
+                  <button type="button" class="chip on" (click)="toggleSample(s)">{{ s }}</button>
+                }
+              }
+              <button
+                type="button"
+                class="chip add"
+                (click)="addMaster('SAMPLE_TYPE', 'sample type', toggleSampleFn)"
+              >
+                + Add
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    </section>
+
+    <!-- SINGLE: result settings for the only parameter -->
+    @if (type() === 'SINGLE' && single(); as p) {
+      <section class="card pad">
+        <h2 class="sec-title">Result</h2>
+        <div class="grid g4">
+          <label
+            >Printed as
+            <input class="form-control" [(ngModel)]="p.name" />
+          </label>
+          <label
+            >Unit
+            <input class="form-control" list="dl-units" [(ngModel)]="p.unit" />
+          </label>
+          <label
+            >Result type
+            <select
+              class="form-control"
+              [ngModel]="p.resultType"
+              (ngModelChange)="onResultTypeChange(p, $event)"
+            >
+              <option value="MANUAL">Manual entry</option>
+              <option value="DROPDOWN">Dropdown – single</option>
+              <option value="MULTI_SELECT">Dropdown – multiple</option>
+              <option value="FIXED">Fixed value (editable)</option>
+            </select>
+          </label>
+          <label
+            >Input type
+            <select class="form-control" [(ngModel)]="p.inputType">
+              <option value="NUMERIC">Numeric</option>
+              <option value="TEXT">Single line text</option>
+              <option value="PARAGRAPH">Paragraph</option>
+            </select>
+          </label>
+          @if (p.inputType === 'NUMERIC') {
+            <label
+              >Decimal places
+              <input
+                class="form-control"
+                type="number"
+                min="0"
+                max="4"
+                [(ngModel)]="p.decimals"
+                placeholder="as typed"
+              />
+            </label>
+          }
+          <label
+            >Default result
+            @if (p.resultType === 'DROPDOWN' || p.resultType === 'MULTI_SELECT') {
+              <select class="form-control" [(ngModel)]="p.defaultResult">
+                <option value="">—</option>
+                @for (o of p.options ?? []; track o) {
+                  <option [value]="o">{{ o }}</option>
+                }
+              </select>
+            } @else {
+              <input class="form-control" [(ngModel)]="p.defaultResult" placeholder="optional" />
+            }
+          </label>
+        </div>
+        <div class="row-actions">
+          @if (p.resultType === 'DROPDOWN' || p.resultType === 'MULTI_SELECT') {
+            <button type="button" class="btn btn-secondary btn-sm" (click)="openOptions(p)">
+              Dropdown options ({{ p.options?.length || 0 }})
+            </button>
+          }
+          <button type="button" class="btn btn-primary btn-sm" (click)="openRanges(p)">
+            Normal values
+          </button>
+          <span class="range-sum" [title]="rangeTooltip(p)">{{
+            rangeSummary(p) || 'No normal value set'
+          }}</span>
+        </div>
+      </section>
+    }
+
+    <!-- DOCUMENT: narrative template -->
+    @if (type() === 'DOCUMENT' && single(); as p) {
+      <section class="card pad">
+        <h2 class="sec-title">Report template</h2>
+        <p class="muted small">
+          This text is pre-filled when the result is entered; the pathologist edits it per patient.
+        </p>
+        <label
+          >Heading printed on report
+          <input class="form-control" [(ngModel)]="p.name" />
+        </label>
+        <label
+          >Template
+          <textarea class="form-control" rows="8" [(ngModel)]="p.defaultResult"></textarea>
+        </label>
+      </section>
+    }
+
+    <!-- MULTIPLE / NESTED: parameter table -->
+    @if (hasParamTable()) {
+      <section class="card">
+        <div class="sec-head pad-x">
+          <h2 class="sec-title">
+            Parameters <span class="count">{{ params().length }}</span>
+          </h2>
+          <span class="muted small"
+            >Drag rows to reorder. Formula results are calculated automatically during result
+            entry.</span
+          >
+        </div>
+        <div class="table-scroll">
+          <table class="ptable">
+            <thead>
+              <tr>
+                <th class="w-order">#</th>
+                @if (type() === 'NESTED') {
+                  <th class="w-group">Group *</th>
+                }
+                <th class="w-name">Parameter name *</th>
+                <th class="w-unit">Unit</th>
+                <th class="w-method">Method</th>
+                <th class="w-type">Result type</th>
+                <th class="w-def">Default / formula</th>
+                <th class="w-dec">Dec.</th>
+                <th class="w-range">Normal values</th>
+                <th class="w-flags">Options</th>
+                <th class="w-act"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (
+                p of params();
+                track p._key;
+                let i = $index;
+                let first = $first;
+                let last = $last
+              ) {
+                <tr
+                  draggable="true"
+                  (dragstart)="onDragStart(p)"
+                  (dragover)="$event.preventDefault()"
+                  (drop)="onDrop(p)"
+                >
+                  <td class="order">
+                    <span class="grip" title="Drag to reorder">⋮⋮</span>{{ i + 1 }}
+                    <span class="arrows">
+                      <button
+                        type="button"
+                        [disabled]="first"
+                        (click)="move(p, -1)"
+                        title="Move up"
+                      >
+                        ▲
+                      </button>
+                      <button
+                        type="button"
+                        [disabled]="last"
+                        (click)="move(p, 1)"
+                        title="Move down"
+                      >
+                        ▼
+                      </button>
+                    </span>
+                  </td>
+                  @if (type() === 'NESTED') {
+                    <td>
+                      <input
+                        class="form-control sm"
+                        list="dl-groups"
+                        [(ngModel)]="p.groupBy"
+                        (change)="touchParams()"
+                        placeholder="e.g. DIFFERENTIAL COUNT"
+                      />
+                    </td>
+                  }
+                  <td>
+                    <input
+                      class="form-control sm"
+                      [(ngModel)]="p.name"
+                      (change)="touchParams()"
+                      placeholder="e.g. HAEMOGLOBIN"
+                    />
+                  </td>
+                  <td><input class="form-control sm" list="dl-units" [(ngModel)]="p.unit" /></td>
+                  <td>
+                    <input
+                      class="form-control sm"
+                      list="dl-methods"
+                      [(ngModel)]="p.method"
+                      placeholder="test method"
+                    />
+                  </td>
+                  <td>
+                    <select
+                      class="form-control sm"
+                      [ngModel]="p.resultType"
+                      (ngModelChange)="onResultTypeChange(p, $event)"
+                    >
+                      <option value="MANUAL">Manual</option>
+                      <option value="DROPDOWN">Dropdown</option>
+                      <option value="MULTI_SELECT">Multi-select</option>
+                      <option value="FIXED">Fixed</option>
+                      <option value="FORMULA">Formula</option>
+                    </select>
+                    @if (p.resultType === 'MANUAL' || p.resultType === 'FIXED') {
+                      <select class="form-control sm mt" [(ngModel)]="p.inputType">
+                        <option value="NUMERIC">Numeric</option>
+                        <option value="TEXT">Text</option>
+                        <option value="PARAGRAPH">Paragraph</option>
+                      </select>
+                    }
+                  </td>
+                  <td>
+                    @if (p.resultType === 'FORMULA') {
+                      <button
+                        type="button"
+                        class="formula-btn"
+                        (click)="openFormula(p)"
+                        [title]="p.formula || 'Set formula'"
+                      >
+                        {{ p.formula || 'Set formula…' }}
+                      </button>
+                    } @else if (p.resultType === 'DROPDOWN' || p.resultType === 'MULTI_SELECT') {
+                      <button
+                        type="button"
+                        class="btn btn-secondary btn-sm"
+                        (click)="openOptions(p)"
+                      >
+                        Options ({{ p.options?.length || 0 }})
+                      </button>
+                      <select class="form-control sm mt" [(ngModel)]="p.defaultResult">
+                        <option value="">no default</option>
+                        @for (o of p.options ?? []; track o) {
+                          <option [value]="o">{{ o }}</option>
+                        }
+                      </select>
+                    } @else {
+                      <input
+                        class="form-control sm"
+                        [(ngModel)]="p.defaultResult"
+                        placeholder="optional"
+                      />
+                    }
+                  </td>
+                  <td>
+                    <input
+                      class="form-control sm"
+                      type="number"
+                      min="0"
+                      max="4"
+                      [(ngModel)]="p.decimals"
+                    />
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      class="range-btn"
+                      [class.empty]="!p.ranges?.length"
+                      (click)="openRanges(p)"
+                      [title]="rangeTooltip(p)"
+                    >
+                      {{ rangeSummary(p) || '+ Add' }}
+                    </button>
+                  </td>
+                  <td class="flags">
+                    <label class="chk"
+                      ><input type="checkbox" [(ngModel)]="p.isOptional" /> Optional</label
+                    >
+                    <label class="chk"><input type="checkbox" [(ngModel)]="p.isBold" /> Bold</label>
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      class="icon-del"
+                      (click)="removeParam(p)"
+                      title="Remove parameter"
+                    >
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="pad-x pad-b">
+          <button type="button" class="btn btn-secondary btn-sm" (click)="addParam()">
+            + Add parameter
+          </button>
+        </div>
+      </section>
+    }
+
+    <!-- PANEL: included tests -->
+    @if (type() === 'PANEL') {
+      <section class="card pad">
+        <h2 class="sec-title">
+          Tests in this panel <span class="count">{{ panelMembers().length }}</span>
+        </h2>
+        <div class="panel-search">
+          <input
+            class="form-control"
+            [ngModel]="panelSearch()"
+            (ngModelChange)="panelSearch.set($event)"
+            placeholder="Search a test to add…"
+          />
+          @if (panelSearch().trim()) {
+            <div class="suggest">
+              @for (t of panelCandidates(); track t.id) {
+                <button type="button" (click)="addPanelTest(t.id)">
+                  <span>{{ t.name }}</span
+                  ><span class="muted">{{ t.category }} · ₹{{ t.price }}</span>
+                </button>
+              } @empty {
+                <div class="muted pad-s">No matching test</div>
+              }
+            </div>
+          }
+        </div>
+        <table class="ptable compact">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Test</th>
+              <th>Department</th>
+              <th class="num">Price</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (
+              t of panelMembers();
+              track t.id;
+              let i = $index;
+              let first = $first;
+              let last = $last
+            ) {
+              <tr>
+                <td class="order">
+                  {{ i + 1 }}
+                  <span class="arrows">
+                    <button type="button" [disabled]="first" (click)="movePanelTest(t.id, -1)">
+                      ▲
+                    </button>
+                    <button type="button" [disabled]="last" (click)="movePanelTest(t.id, 1)">
+                      ▼
+                    </button>
+                  </span>
+                </td>
+                <td>{{ t.name }}</td>
+                <td>{{ t.category }}</td>
+                <td class="num">₹{{ t.price }}</td>
+                <td>
+                  <button type="button" class="icon-del" (click)="removePanelTest(t.id)">✕</button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="5" class="muted center">No tests added yet</td>
+              </tr>
+            }
+          </tbody>
+          @if (panelMembers().length) {
+            <tfoot>
+              <tr>
+                <td colspan="3">Total of individual prices</td>
+                <td class="num">₹{{ panelMemberTotal() }}</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          }
+        </table>
+      </section>
+    }
+
+    <!-- Report options -->
+    @if (type() !== 'PANEL') {
+      <section class="card pad">
+        <h2 class="sec-title">Report options</h2>
+        <label
+          >Interpretation / notes printed below the test
+          <textarea
+            class="form-control"
+            rows="3"
+            [ngModel]="form().interpretation"
+            (ngModelChange)="patch({ interpretation: $event })"
+            placeholder="optional"
+          ></textarea>
+        </label>
+        <label class="chk mt"
+          ><input
+            type="checkbox"
+            [ngModel]="form().printOnNewPage"
+            (ngModelChange)="patch({ printOnNewPage: $event })"
+          />
+          Print this test on a new page</label
+        >
+      </section>
+    }
+
+    <div class="te-actions">
+      <a [routerLink]="listUrl" class="btn btn-secondary">Cancel</a>
+      <button type="button" class="btn btn-secondary" [disabled]="saving()" (click)="save(true)">
+        Save &amp; close
+      </button>
+      <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="save()">
+        {{ saving() ? 'Saving…' : 'Save' }}
+      </button>
+    </div>
+  }
+
+  <datalist id="dl-units">
+    @for (u of units(); track u.id) {
+      <option [value]="u.name"></option>
+    }
+  </datalist>
+  <datalist id="dl-methods">
+    @for (m of methods(); track m.id) {
+      <option [value]="m.name"></option>
+    }
+  </datalist>
+  <datalist id="dl-groups">
+    @for (g of groups(); track g) {
+      <option [value]="g"></option>
+    }
+  </datalist>
+</div>
+
+@if (rangeFor(); as p) {
+  <hms-normal-value-editor
+    [parameterName]="p.name"
+    [unit]="p.unit"
+    [ranges]="p.ranges ?? []"
+    (saved)="onRangesSaved($event)"
+    (cancel)="rangeFor.set(null)"
+  />
+}
+
+@if (optionsFor(); as p) {
+  <div class="m-overlay" (click)="optionsFor.set(null)">
+    <div class="m-box" (click)="$event.stopPropagation()">
+      <h2>Dropdown options – {{ p.name || 'parameter' }}</h2>
+      <p class="muted small">
+        Tick the values that are normal. Any other value is flagged abnormal on the report.
+      </p>
+      @for (o of optionsDraft(); track $index; let i = $index) {
+        <div class="opt-row">
+          <input class="form-control" [(ngModel)]="o.value" placeholder="Option {{ i + 1 }}" />
+          <label class="chk"><input type="checkbox" [(ngModel)]="o.normal" /> Normal</label>
+          <button type="button" class="icon-del" (click)="removeOption(i)">✕</button>
+        </div>
+      }
+      <button type="button" class="btn btn-secondary btn-sm" (click)="addOption()">
+        + Add option
+      </button>
+      <div class="m-foot">
+        <button type="button" class="btn btn-secondary" (click)="optionsFor.set(null)">
+          Cancel
+        </button>
+        <button type="button" class="btn btn-primary" (click)="saveOptions()">Done</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (formulaFor(); as p) {
+  <div class="m-overlay" (click)="formulaFor.set(null)">
+    <div class="m-box wide" (click)="$event.stopPropagation()">
+      <h2>Formula – {{ p.name || 'parameter' }}</h2>
+      <p class="muted small">
+        Click a parameter to insert it. Use + − × ÷ and brackets, e.g.
+        <code>{{ '{' }}TOTAL BILIRUBIN{{ '}' }} - {{ '{' }}DIRECT BILIRUBIN{{ '}' }}</code>
+      </p>
+      <div class="chips">
+        @for (n of paramNames(); track n) {
+          @if (n !== p.name) {
+            <button type="button" class="chip" (click)="insertRef(n)">{{ n }}</button>
+          }
+        }
+      </div>
+      <div class="chips ops">
+        @for (op of ['+', '-', '*', '/', '(', ')']; track op) {
+          <button type="button" class="chip" (click)="insertOp(op)">{{ op }}</button>
+        }
+      </div>
+      <textarea
+        class="form-control mono"
+        rows="3"
+        [ngModel]="formulaDraft()"
+        (ngModelChange)="formulaDraft.set($event)"
+      ></textarea>
+      @if (formulaError()) {
+        <div class="err">{{ formulaError() }}</div>
+      } @else {
+        <div class="ok">Formula looks good</div>
+      }
+      <div class="m-foot">
+        <button type="button" class="btn btn-secondary" (click)="formulaDraft.set('')">
+          Clear
+        </button>
+        <button type="button" class="btn btn-secondary" (click)="formulaFor.set(null)">
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          [disabled]="!!formulaError()"
+          (click)="saveFormula()"
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+}

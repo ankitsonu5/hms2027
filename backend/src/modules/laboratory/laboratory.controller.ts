@@ -4,6 +4,7 @@ import {
   Post,
   Patch,
   Delete,
+  Put,
   Body,
   Param,
   Query,
@@ -25,6 +26,15 @@ import { UpdateLabTestDto } from './dto/update-lab-test.dto';
 import { CreateLabOrderDto } from './dto/create-lab-order.dto';
 import { UpdateLabOrderDto } from './dto/update-lab-order.dto';
 import { CreateLabResultDto } from './dto/create-lab-result.dto';
+import { TestMasterService } from './test-master.service';
+import { LabReportService } from './lab-report.service';
+import { ApproveReportDto, SaveOrderResultsDto, UpdateReportSettingsDto } from './dto/lab-report.dto';
+import {
+  CreateLabMasterDto,
+  SaveRangesDto,
+  SaveTestDefinitionDto,
+  UpdateLabMasterDto,
+} from './dto/test-definition.dto';
 
 // Inline query DTO to avoid standalone class issues
 class TestQueryDto {
@@ -46,6 +56,9 @@ class TestQueryDto {
 
   @IsOptional()
   isActive?: boolean | string;
+
+  @IsOptional()
+  testType?: string;
 }
 
 class OrderQueryDto {
@@ -71,7 +84,114 @@ class OrderQueryDto {
 @UseGuards(JwtAuthGuard)
 @Controller({ path: 'laboratory', version: '1' })
 export class LaboratoryController {
-  constructor(private readonly labService: LaboratoryService) {}
+  constructor(
+    private readonly labService: LaboratoryService,
+    private readonly testMaster: TestMasterService,
+    private readonly reports: LabReportService,
+  ) {}
+
+  // ── Report settings (letterhead, signatures, columns) ──────────────────────
+
+  @Get('report-settings')
+  @ApiOperation({ summary: 'Lab report print settings' })
+  getReportSettings(@Req() req: any) {
+    return this.reports.getSettings(req.user.tenantId);
+  }
+
+  @Put('report-settings')
+  @ApiOperation({ summary: 'Update lab report print settings' })
+  updateReportSettings(@Req() req: any, @Body() dto: UpdateReportSettingsDto) {
+    return this.reports.updateSettings(req.user.tenantId, dto);
+  }
+
+  // ── Result entry & report ──────────────────────────────────────────────────
+
+  @Get('orders/:id/worksheet')
+  @ApiOperation({ summary: 'Tests, parameters, patient-specific normal values and saved results of an order' })
+  worksheet(@Req() req: any, @Param('id') id: string) {
+    return this.reports.worksheet(req.user.tenantId, id);
+  }
+
+  @Put('orders/:id/results')
+  @ApiOperation({ summary: 'Save parameter results of an order (flags are calculated on the server)' })
+  saveOrderResults(@Req() req: any, @Param('id') id: string, @Body() dto: SaveOrderResultsDto) {
+    return this.reports.saveResults(req.user.tenantId, id, dto, req.user);
+  }
+
+  @Post('orders/:id/approve')
+  @ApiOperation({ summary: 'Approve (verify) or un-approve a report' })
+  approveReport(@Req() req: any, @Param('id') id: string, @Body() dto: ApproveReportDto) {
+    return this.reports.setApproval(req.user.tenantId, id, dto.approve, req.user);
+  }
+
+  @Post('orders/:id/printed')
+  @ApiOperation({ summary: 'Count a report print' })
+  markPrinted(@Req() req: any, @Param('id') id: string) {
+    return this.reports.markPrinted(req.user.tenantId, id);
+  }
+
+  // ── Test master: lookup lists ──────────────────────────────────────────────
+
+  @Get('masters')
+  @ApiOperation({ summary: 'List units / sample types / categories / methods' })
+  @ApiQuery({ name: 'kind', required: false, type: String })
+  listMasters(@Req() req: any, @Query('kind') kind?: string) {
+    return this.testMaster.listMasters(req.user.tenantId, kind);
+  }
+
+  @Post('masters')
+  @ApiOperation({ summary: 'Add a unit / sample type / category / method' })
+  createMaster(@Req() req: any, @Body() dto: CreateLabMasterDto) {
+    return this.testMaster.createMaster(req.user.tenantId, dto);
+  }
+
+  @Post('masters/seed-standard')
+  @ApiOperation({ summary: 'Load the standard test library (CBC, LFT, KFT…); existing tests are skipped' })
+  seedStandard(@Req() req: any) {
+    return this.testMaster.seedStandard(req.user.tenantId);
+  }
+
+  @Patch('masters/:id')
+  updateMaster(@Req() req: any, @Param('id') id: string, @Body() dto: UpdateLabMasterDto) {
+    return this.testMaster.updateMaster(req.user.tenantId, id, dto);
+  }
+
+  @Delete('masters/:id')
+  removeMaster(@Req() req: any, @Param('id') id: string) {
+    return this.testMaster.removeMaster(req.user.tenantId, id);
+  }
+
+  // ── Test master: definitions (test + parameters + normal values) ────────────
+
+  @Post('test-definitions')
+  @ApiOperation({ summary: 'Create a test with its parameters and normal values' })
+  createDefinition(@Req() req: any, @Body() dto: SaveTestDefinitionDto) {
+    return this.testMaster.createDefinition(req.user.tenantId, dto);
+  }
+
+  @Put('test-definitions/:id')
+  @ApiOperation({ summary: 'Replace a test definition (parameters keep their ids when sent back)' })
+  updateDefinition(@Req() req: any, @Param('id') id: string, @Body() dto: SaveTestDefinitionDto) {
+    return this.testMaster.updateDefinition(req.user.tenantId, id, dto);
+  }
+
+  @Get('tests/:id')
+  @ApiOperation({ summary: 'Get a test definition with parameters and normal values' })
+  getDefinition(@Req() req: any, @Param('id') id: string) {
+    return this.testMaster.getDefinition(req.user.tenantId, id);
+  }
+
+  @Post('tests/:id/duplicate')
+  @ApiOperation({ summary: 'Copy a test definition' })
+  duplicateDefinition(@Req() req: any, @Param('id') id: string) {
+    return this.testMaster.duplicateDefinition(req.user.tenantId, id);
+  }
+
+  @Put('parameters/:id/ranges')
+  @ApiOperation({ summary: 'Replace the normal values of one parameter' })
+  saveRanges(@Req() req: any, @Param('id') id: string, @Body() dto: SaveRangesDto) {
+    return this.testMaster.saveRanges(req.user.tenantId, id, dto.ranges);
+  }
 
   // ── Lab Tests ──────────────────────────────────────────────────────────────
 
@@ -93,7 +213,8 @@ export class LaboratoryController {
       query.limit,
       query.search,
       query.category,
-      isActiveValue
+      isActiveValue,
+      query.testType,
     );
   }
 

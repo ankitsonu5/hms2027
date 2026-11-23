@@ -18,14 +18,18 @@ export class UserService {
   }
 
   async createDoctor(tenantId: string, data: any): Promise<User> {
-    const existing = await this.users.findOne({ where: { email: data.email, tenantId } });
+    // Doctors who never log in (e.g. referring doctors) don't need a real email.
+    const email = (data.email || '').trim().toLowerCase() ||
+      `doctor.${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}@doctors.local`;
+    const existing = await this.users.findOne({ where: { email } });
     if (existing) throw new ConflictException('User with this email already exists');
 
     const passwordHash = await bcrypt.hash(data.password || 'doctor123', 12);
     
     const user = this.users.create({
       name: data.name,
-      email: data.email,
+      email,
+      phone: data.phone,
       specialisation: data.specialisation,
       registrationNo: data.registrationNo,
       availableFrom: data.availableFrom,
@@ -47,13 +51,22 @@ export class UserService {
       delete data.password;
     }
     
-    Object.assign(user, data);
+    const { id: _id, tenantId: _t, roles: _r, email, ...rest } = data ?? {};
+    Object.assign(user, rest);
+    if (typeof email === 'string' && email.trim()) user.email = email.trim().toLowerCase();
     return this.users.save(user);
   }
 
   async deleteDoctor(tenantId: string, id: string): Promise<void> {
     const user = await this.users.findOne({ where: { id, tenantId } });
     if (!user) throw new NotFoundException('Doctor not found');
+    // A user with other roles (e.g. the admin who is also a doctor) keeps the
+    // account; only the doctor role is removed.
+    if ((user.roles ?? []).some((r) => r !== UserRole.DOCTOR)) {
+      user.roles = user.roles.filter((r) => r !== UserRole.DOCTOR);
+      await this.users.save(user);
+      return;
+    }
     try {
       await this.users.remove(user);
     } catch {

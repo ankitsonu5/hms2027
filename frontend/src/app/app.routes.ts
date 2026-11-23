@@ -8,6 +8,13 @@ export const routes: Routes = [
     path: 'auth',
     loadChildren: () => import('./modules/auth/auth.routes').then((m) => m.AUTH_ROUTES),
   },
+  // Full-page print views (no sidebar / top bar).
+  {
+    path: 'print/lab-report/:orderId',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./modules/laboratory/lab-report-print.page').then((m) => m.LabReportPrintPage),
+  },
   {
     path: '',
     component: ShellComponent,

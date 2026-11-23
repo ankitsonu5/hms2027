@@ -1,10 +1,14 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Letterhead / signature images are sent as data URLs, larger than the 100 kB default.
+  app.useBodyParser('json', { limit: '10mb' });
 
   // ── Global API prefix ──────────────────────────────────────────────────────
   app.setGlobalPrefix('api', { exclude: ['/'] });

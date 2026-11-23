@@ -1,577 +1,324 @@
-import { Component, OnInit, signal, inject, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { RouterModule, Router, ActivatedRoute } from '@angular/router';
-import { ReactiveFormsModule, FormBuilder, FormArray, FormGroup } from '@angular/forms';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { LabApiService } from '../../core/services/lab-api.service';
-import { PatientApiService } from '../../core/services/patient-api.service';
-import { forkJoin } from 'rxjs';
+import { FLAG_LABEL, ResultFlag, evaluateFormula, flagValue, roundTo } from './lab-range';
 
+interface WsParam {
+  parameterId: string | null;
+  name: string;
+  unit: string | null;
+  method: string | null;
+  inputType: string;
+  resultType: string;
+  options: string[] | null;
+  normalOptions: string[] | null;
+  defaultResult: string | null;
+  formula: string | null;
+  decimals: number | null;
+  groupBy: string | null;
+  isOptional: boolean;
+  isBold: boolean;
+  range: any;
+  rangeText: string;
+  remark: string | null;
+  value: string | null;
+  flag: string | null;
+  hideInPrint: boolean;
+  saved: boolean;
+  // ui
+  _idx?: number;
+}
+
+interface WsTest {
+  testId: string;
+  testName: string;
+  category: string;
+  testType: string;
+  method: string | null;
+  sampleType: string | null;
+  isOutsourced: boolean;
+  outsourceCenter: string | null;
+  panelName: string | null;
+  reportUrl: string | null;
+  parameters: WsParam[];
+}
+
+interface Row {
+  kind: 'category' | 'test' | 'group' | 'param';
+  label?: string;
+  test?: WsTest;
+  param?: WsParam;
+}
+
+/**
+ * Result entry for one lab order, parameter by parameter. The normal value
+ * shown is the band matching the patient's age and gender; flags and formula
+ * results update while typing. Enter / Tab moves to the next result.
+ */
 @Component({
   selector: 'hms-lab-result-entry',
   standalone: true,
-  imports: [CommonModule, RouterModule, ReactiveFormsModule],
-  styles: [
-    `
-      .page-wrap {
-        padding: var(--sp-6);
-        max-width: 900px;
-        margin: 0 auto;
-      }
-      .page-header {
-        display: flex;
-        align-items: center;
-        gap: var(--sp-3);
-        margin-bottom: var(--sp-6);
-      }
-      .back-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--sp-1);
-        background: transparent;
-        border: none;
-        color: var(--clr-primary-600);
-        font-family: var(--font-label);
-        font-size: var(--text-sm);
-        font-weight: var(--fw-medium);
-        cursor: pointer;
-        padding: var(--sp-1) var(--sp-2);
-        border-radius: var(--radius-md);
-      }
-      .back-btn:hover {
-        background: var(--clr-primary-50);
-      }
-      .page-title {
-        font-family: var(--font-display);
-        font-weight: var(--fw-bold);
-        font-size: var(--text-2xl);
-        color: var(--clr-neutral-900);
-        margin: 0;
-      }
-      .page-subtitle {
-        font-family: var(--font-body);
-        font-size: var(--text-sm);
-        color: var(--clr-neutral-500);
-        margin: 0;
-      }
-
-      /* Order meta card */
-      .meta-card {
-        background: var(--bg-surface);
-        border: 1px solid var(--border-default);
-        border-radius: var(--radius-lg);
-        padding: var(--sp-4) var(--sp-6);
-        margin-bottom: var(--sp-5);
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--sp-6);
-      }
-      .meta-item {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
-      .meta-label {
-        font-family: var(--font-label);
-        font-size: var(--text-xs);
-        font-weight: var(--fw-semibold);
-        color: var(--clr-neutral-500);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-      .meta-value {
-        font-family: var(--font-body);
-        font-size: var(--text-sm);
-        font-weight: var(--fw-medium);
-        color: var(--clr-neutral-800);
-      }
-
-      /* Results form */
-      .results-card {
-        background: var(--bg-surface);
-        border: 1px solid var(--border-default);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-sm);
-        overflow: hidden;
-        margin-bottom: var(--sp-5);
-      }
-      .results-card-header {
-        padding: var(--sp-4) var(--sp-6);
-        border-bottom: 1px solid var(--border-default);
-        background: var(--bg-muted);
-      }
-      .results-card-title {
-        font-family: var(--font-display);
-        font-size: var(--text-base);
-        font-weight: var(--fw-semibold);
-        color: var(--clr-neutral-700);
-        margin: 0;
-      }
-
-      table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      th {
-        font-family: var(--font-label);
-        font-size: var(--text-xs);
-        font-weight: var(--fw-semibold);
-        color: var(--clr-neutral-500);
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        padding: var(--sp-3) var(--sp-4);
-        text-align: left;
-        background: var(--bg-muted);
-        border-bottom: 1px solid var(--border-default);
-        white-space: nowrap;
-      }
-      td {
-        font-family: var(--font-body);
-        font-size: var(--text-sm);
-        color: var(--clr-neutral-800);
-        padding: var(--sp-3) var(--sp-4);
-        border-bottom: 1px solid var(--border-default);
-        vertical-align: middle;
-      }
-      tr:last-child td {
-        border-bottom: none;
-      }
-
-      .form-control {
-        padding: var(--sp-2) var(--sp-3);
-        border: 1px solid var(--border-default);
-        border-radius: var(--radius-md);
-        font-family: var(--font-body);
-        font-size: var(--text-sm);
-        color: var(--clr-neutral-900);
-        background: var(--bg-surface);
-        width: 100%;
-        max-width: 220px;
-        transition: var(--transition-base);
-      }
-      .form-control:focus {
-        outline: none;
-        border-color: var(--clr-primary-400);
-        box-shadow: 0 0 0 3px var(--clr-primary-100);
-      }
-
-      .checkbox-wrap {
-        display: flex;
-        align-items: center;
-        gap: var(--sp-2);
-      }
-      input[type='checkbox'] {
-        width: 16px;
-        height: 16px;
-        accent-color: var(--clr-danger-600);
-        cursor: pointer;
-      }
-      .abnormal-label {
-        font-family: var(--font-label);
-        font-size: var(--text-xs);
-        font-weight: var(--fw-medium);
-        color: var(--clr-danger-600);
-      }
-      .normal-label {
-        font-family: var(--font-label);
-        font-size: var(--text-xs);
-        color: var(--clr-neutral-400);
-      }
-
-      .badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 2px var(--sp-2);
-        border-radius: var(--radius-full);
-        font-family: var(--font-label);
-        font-size: var(--text-xs);
-        font-weight: var(--fw-medium);
-      }
-      .badge-warning {
-        background: var(--clr-warning-100);
-        color: var(--clr-warning-700);
-      }
-      .badge-info {
-        background: var(--clr-info-100);
-        color: var(--clr-info-700);
-      }
-      .badge-success {
-        background: var(--clr-success-100);
-        color: var(--clr-success-700);
-      }
-      .badge-neutral {
-        background: var(--clr-neutral-100);
-        color: var(--clr-neutral-600);
-      }
-
-      /* Actions */
-      .form-actions {
-        display: flex;
-        gap: var(--sp-3);
-        justify-content: flex-end;
-      }
-      .btn {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--sp-2);
-        padding: var(--sp-2) var(--sp-5);
-        border-radius: var(--radius-md);
-        font-family: var(--font-label);
-        font-size: var(--text-sm);
-        font-weight: var(--fw-medium);
-        border: none;
-        cursor: pointer;
-        transition: var(--transition-base);
-      }
-      .btn:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
-      .btn-primary {
-        background: var(--clr-primary-600);
-        color: #fff;
-      }
-      .btn-primary:hover:not(:disabled) {
-        background: var(--clr-primary-700);
-      }
-      .btn-secondary {
-        background: var(--bg-surface);
-        color: var(--clr-neutral-700);
-        border: 1px solid var(--border-default);
-      }
-      .btn-secondary:hover:not(:disabled) {
-        background: var(--bg-muted);
-      }
-
-      /* States */
-      .loading-state,
-      .error-state {
-        text-align: center;
-        padding: var(--sp-12);
-        color: var(--clr-neutral-400);
-        font-family: var(--font-body);
-        font-size: var(--text-sm);
-      }
-      .error-state {
-        color: var(--clr-danger-500);
-      }
-
-      .success-banner {
-        background: var(--clr-success-50);
-        border: 1px solid var(--clr-success-200);
-        border-radius: var(--radius-md);
-        padding: var(--sp-3) var(--sp-4);
-        margin-bottom: var(--sp-4);
-        font-family: var(--font-label);
-        font-size: var(--text-sm);
-        font-weight: var(--fw-medium);
-        color: var(--clr-success-700);
-      }
-    `,
-  ],
-  template: `
-    <div class="page-wrap">
-      <!-- Header -->
-      <div class="page-header">
-        <button class="back-btn" (click)="goBack()">← Back</button>
-        <div>
-          <h1 class="page-title">Enter Results</h1>
-          @if (order()) {
-            <p class="page-subtitle">Order #{{ order().id }} — Patient {{ patient() ? (patient()?.firstName + ' ' + patient()?.lastName + ' (' + patient()?.uhid + ')') : order().patientId }}</p>
-          }
-        </div>
-      </div>
-
-      @if (loadingOrder()) {
-        <div class="loading-state">Loading order…</div>
-      } @else if (loadError()) {
-        <div class="error-state">Failed to load order. Please go back and try again.</div>
-      } @else if (order()) {
-        <!-- Success banner -->
-        @if (saved()) {
-          <div class="success-banner">Results saved successfully.</div>
-        }
-
-        <!-- Order meta -->
-        <div class="meta-card">
-          <div class="meta-item">
-            <span class="meta-label">Patient</span>
-            <span class="meta-value">{{ patient() ? (patient()?.firstName + ' ' + patient()?.lastName + ' (' + patient()?.uhid + ')') : order().patientId }}</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-label">Doctor</span>
-            <span class="meta-value">{{
-              order().orderedByDoctorName || order().orderedByDoctorId || '—'
-            }}</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-label">Status</span>
-            <span class="badge" [ngClass]="statusBadge(order().status)">{{
-              statusLabel(order().status)
-            }}</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-label">Date</span>
-            <span class="meta-value">{{ order().createdAt | date: 'dd MMM yyyy' }}</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-label">Total</span>
-            <span class="meta-value">₹{{ order().totalAmount ?? 0 }}</span>
-          </div>
-        </div>
-
-        <!-- Results form -->
-        <div class="results-card">
-          <div class="results-card-header">
-            <p class="results-card-title">Test Results</p>
-          </div>
-          <form [formGroup]="resultsForm">
-            <div formArrayName="results">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Test Name</th>
-                    <th>Category</th>
-                    <th>Unit</th>
-                    <th>Normal Range</th>
-                    <th>Result Value</th>
-                    <th>Abnormal?</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (ctrl of resultsArray.controls; track $index) {
-                    <tr [formGroupName]="$index">
-                      <td>
-                        <strong>{{ getTestMeta($index, 'testName') || getTestMeta($index, 'name') }}</strong>
-                      </td>
-                      <td>{{ getTestMeta($index, 'category') || '—' }}</td>
-                      <td>{{ getTestMeta($index, 'unit') || '—' }}</td>
-                      <td>{{ getTestMeta($index, 'normalRange') || '—' }}</td>
-                      <td>
-                        <input
-                          class="form-control"
-                          formControlName="value"
-                          placeholder="Enter value"
-                        />
-                      </td>
-                      <td>
-                        <div class="checkbox-wrap">
-                          <input
-                            type="checkbox"
-                            [id]="'abnormal-' + $index"
-                            formControlName="isAbnormal"
-                          />
-                          @if (ctrl.get('isAbnormal')?.value) {
-                            <label class="abnormal-label" [for]="'abnormal-' + $index"
-                              >Abnormal</label
-                            >
-                          } @else {
-                            <label class="normal-label" [for]="'abnormal-' + $index">Normal</label>
-                          }
-                        </div>
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          </form>
-        </div>
-
-        <!-- Actions -->
-        <div class="form-actions">
-          <button class="btn btn-secondary" (click)="goBack()">Cancel</button>
-          <button class="btn btn-primary" [disabled]="submitting()" (click)="saveResults()">
-            {{ submitting() ? 'Saving…' : 'Save Results' }}
-          </button>
-        </div>
-      }
-    </div>
-  `,
+  imports: [FormsModule, DatePipe],
+  templateUrl: './lab-result-entry.page.html',
+  styleUrl: './lab-result-entry.page.scss',
 })
 export class LabResultPage implements OnInit {
-  private labApi = inject(LabApiService);
-  private patientApi = inject(PatientApiService);
-  private router = inject(Router);
+  private api = inject(LabApiService);
   private route = inject(ActivatedRoute);
-  private fb = inject(FormBuilder);
-  private cd = inject(ChangeDetectorRef);
+  private router = inject(Router);
+
+  orderId = '';
+  loading = signal(true);
+  saving = signal(false);
+  error = signal('');
+  notice = signal('');
+  dirty = signal(false);
 
   order = signal<any>(null);
   patient = signal<any>(null);
-  loadingOrder = signal(false);
-  loadError = signal(false);
+  tests = signal<WsTest[]>([]);
+  /** Bumped on every edit so computed views refresh (params are mutated in place). */
+  private tick = signal(0);
 
-  submitting = signal(false);
-  saved = signal(false);
+  readonly flagLabel = FLAG_LABEL;
 
-  // Parallel array that holds test metadata for display (same index as resultsArray)
-  testsMeta = signal<any[]>([]);
-
-  resultsForm: FormGroup = this.fb.group({
-    results: this.fb.array([]),
+  rows = computed<Row[]>(() => {
+    this.tick();
+    const out: Row[] = [];
+    let cat = '';
+    let idx = 0;
+    for (const t of this.tests()) {
+      if (t.category !== cat) {
+        cat = t.category;
+        out.push({ kind: 'category', label: cat });
+      }
+      out.push({ kind: 'test', test: t });
+      let group = '';
+      for (const p of t.parameters) {
+        if (p.groupBy && p.groupBy !== group) {
+          group = p.groupBy;
+          out.push({ kind: 'group', label: group, test: t });
+        }
+        p._idx = idx++;
+        out.push({ kind: 'param', test: t, param: p });
+      }
+    }
+    return out;
   });
 
-  get resultsArray(): FormArray {
-    return this.resultsForm.get('results') as FormArray;
+  progress = computed(() => {
+    this.tick();
+    const all = this.tests().flatMap((t) =>
+      t.parameters.filter((p) => !p.isOptional && p.resultType !== 'FORMULA'),
+    );
+    const done = all.filter((p) => (p.value ?? '').toString().trim()).length;
+    return { done, total: all.length };
+  });
+
+  abnormalCount = computed(() => {
+    this.tick();
+    return this.tests()
+      .flatMap((t) => t.parameters)
+      .filter((p) => this.flagOf(p) && this.flagOf(p) !== 'NORMAL').length;
+  });
+
+  ngOnInit() {
+    this.orderId = this.route.snapshot.paramMap.get('orderId') ?? '';
+    this.load();
   }
 
-  ngOnInit(): void {
-    const orderId = this.route.snapshot.paramMap.get('orderId');
-    if (orderId) {
-      this.loadOrder(orderId);
-    }
-  }
-
-  loadOrder(orderId: string): void {
-    this.loadingOrder.set(true);
-    this.loadError.set(false);
-
-    this.labApi.getOrder(orderId).subscribe({
-      next: (order) => {
-        this.order.set(order);
-        this.buildForm(order, orderId);
-        this.loadingOrder.set(false);
-        
-        // Fetch patient details
-        this.patientApi.getOne(order.patientId).subscribe({
-          next: (pat) => this.patient.set(pat),
-          error: () => this.patient.set(null)
-        });
-      },
-      error: () => {
-        this.loadError.set(true);
-        this.loadingOrder.set(false);
-      },
+  load() {
+    this.loading.set(true);
+    this.api.getWorksheet(this.orderId).subscribe({
+      next: (ws) => this.applyWorksheet(ws),
+      error: (e) => this.fail(e),
     });
   }
 
-  buildForm(order: any, orderId: string): void {
-    const tests: any[] = order.tests ?? [];
-    this.testsMeta.set(tests);
-
-    // Fetch full test details to display category, unit, normalRange
-    this.labApi.listTests({ limit: 1000 }).subscribe({
-      next: (res) => {
-        const fullTests = res.data || [];
-        const testMap: Record<string, any> = {};
-        fullTests.forEach((t: any) => testMap[t.id] = t);
-        
-        const enrichedTests = tests.map(t => {
-          const id = t.testId || t.id;
-          const full = testMap[id] || {};
-          return { ...full, ...t }; // let order test details override if needed, but grab full metadata
-        });
-        
-        this.testsMeta.set(enrichedTests);
-      }
-    });
-
-    // Pre-load existing results if any
-    this.labApi.getResults(orderId).subscribe({
-      next: (existingResults: any[]) => {
-        const resultMap: Record<string, any> = {};
-        if (Array.isArray(existingResults)) {
-          existingResults.forEach((r: any) => {
-            if (r.testId) resultMap[r.testId] = r;
-          });
+  private applyWorksheet(ws: any) {
+    for (const t of ws.tests as WsTest[]) {
+      for (const p of t.parameters) {
+        if (
+          !p.saved &&
+          (p.value == null || p.value === '') &&
+          p.defaultResult &&
+          p.resultType !== 'FORMULA'
+        ) {
+          p.value = p.defaultResult;
         }
-
-        this.resultsArray.clear();
-        tests.forEach((test) => {
-          const id = test.testId || test.id;
-          const existing = resultMap[id] ?? {};
-          this.resultsArray.push(
-            this.fb.group({
-              testId: [id],
-              value: [existing.value ?? ''],
-              isAbnormal: [existing.isAbnormal ?? false],
-            }),
-          );
-        });
-        this.cd.detectChanges();
-      },
-      error: () => {
-        // No existing results — build empty form rows
-        this.resultsArray.clear();
-        tests.forEach((test) => {
-          const id = test.testId || test.id;
-          this.resultsArray.push(
-            this.fb.group({
-              testId: [id],
-              value: [''],
-              isAbnormal: [false],
-            }),
-          );
-        });
-        this.cd.detectChanges();
-      },
-    });
-  }
-
-  getTestMeta(index: number, field: string): string {
-    return this.testsMeta()[index]?.[field] ?? '';
-  }
-
-  saveResults(): void {
-    this.submitting.set(true);
-    this.saved.set(false);
-
-    const orderId = this.order()?.id;
-    const formResults = this.resultsForm.value.results;
-
-    const requests = formResults.map((res: any, index: number) => {
-      const testMeta = this.testsMeta()[index] || {};
-      const payload = {
-        orderId: orderId,
-        testId: res.testId,
-        testName: testMeta.testName || testMeta.name || 'Unknown Test',
-        value: res.value,
-        isAbnormal: res.isAbnormal,
-        unit: testMeta.unit,
-        normalRange: testMeta.normalRange
-      };
-      return this.labApi.saveResult(orderId, payload);
-    });
-
-    if (requests.length === 0) {
-      this.submitting.set(false);
-      return;
+      }
+      this.applyFormulas(t);
     }
+    this.order.set(ws.order);
+    this.patient.set(ws.patient);
+    this.tests.set(ws.tests);
+    this.loading.set(false);
+    this.dirty.set(false);
+    this.tick.update((n) => n + 1);
+  }
 
-    forkJoin(requests).subscribe({
-      next: () => {
-        this.submitting.set(false);
-        this.saved.set(true);
-        // Automatically navigate back on success
-        setTimeout(() => this.goBack(), 500);
+  // ── Editing ────────────────────────────────────────────────────────────────
+
+  onValue(t: WsTest, p: WsParam, value: string) {
+    p.value = value;
+    this.applyFormulas(t);
+    this.dirty.set(true);
+    this.tick.update((n) => n + 1);
+  }
+
+  toggleMulti(t: WsTest, p: WsParam, option: string, on: boolean) {
+    const cur = (p.value ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const next = on ? [...new Set([...cur, option])] : cur.filter((c) => c !== option);
+    this.onValue(t, p, (p.options ?? []).filter((o) => next.includes(o)).join(', '));
+  }
+
+  isPicked(p: WsParam, option: string) {
+    return (p.value ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .includes(option);
+  }
+
+  setHidden(p: WsParam, hidden: boolean) {
+    p.hideInPrint = hidden;
+    this.dirty.set(true);
+    this.tick.update((n) => n + 1);
+  }
+
+  testHidden(t: WsTest) {
+    return t.parameters.length > 0 && t.parameters.every((p) => p.hideInPrint);
+  }
+
+  setTestHidden(t: WsTest, hidden: boolean) {
+    t.parameters.forEach((p) => (p.hideInPrint = hidden));
+    this.dirty.set(true);
+    this.tick.update((n) => n + 1);
+  }
+
+  /** Recalculate formula parameters of a test (a few passes so formulas may use other formulas). */
+  private applyFormulas(t: WsTest) {
+    const formulas = t.parameters.filter((p) => p.resultType === 'FORMULA' && p.formula);
+    if (!formulas.length) return;
+    const byName = new Map(t.parameters.map((p) => [p.name.trim().toUpperCase(), p]));
+    const lookup = (name: string) => {
+      const raw = (byName.get(name.trim().toUpperCase())?.value ?? '')
+        .toString()
+        .replace(/,/g, '')
+        .trim();
+      return raw !== '' && !Number.isNaN(Number(raw)) ? Number(raw) : null;
+    };
+    for (let pass = 0; pass < 3; pass++) {
+      for (const p of formulas) {
+        const v = evaluateFormula(p.formula!, lookup);
+        p.value = v == null ? '' : roundTo(v, p.decimals);
+      }
+    }
+  }
+
+  flagOf(p: WsParam): ResultFlag {
+    if (!p.parameterId) return (p.flag as ResultFlag) || '';
+    return flagValue(p.value, p.range, p.normalOptions);
+  }
+
+  flagClass(p: WsParam) {
+    const f = this.flagOf(p);
+    if (!f || f === 'NORMAL') return '';
+    return f.startsWith('CRITICAL') ? 'crit' : 'abn';
+  }
+
+  /** Enter / Tab / arrows move between result inputs. */
+  onKey(e: KeyboardEvent, p: WsParam) {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'TEXTAREA' && e.key === 'Enter' && !e.ctrlKey) return;
+    let delta = 0;
+    if (e.key === 'Enter' || e.key === 'ArrowDown') delta = 1;
+    if (e.key === 'ArrowUp') delta = -1;
+    if (!delta) return;
+    e.preventDefault();
+    const inputs = Array.from(document.querySelectorAll<HTMLElement>('[data-result-input]'));
+    const i = inputs.indexOf(target);
+    inputs[i + delta]?.focus();
+  }
+
+  // ── Save ───────────────────────────────────────────────────────────────────
+
+  private payload() {
+    return this.tests().flatMap((t) =>
+      t.parameters.map((p) => ({
+        testId: t.testId,
+        ...(p.parameterId ? { parameterId: p.parameterId } : {}),
+        value: (p.value ?? '').toString(),
+        hideInPrint: !!p.hideInPrint,
+      })),
+    );
+  }
+
+  save(then?: 'approve' | 'print') {
+    this.saving.set(true);
+    this.error.set('');
+    this.api
+      .saveOrderResults(this.orderId, { results: this.payload(), approve: then === 'approve' })
+      .subscribe({
+        next: (ws) => {
+          this.saving.set(false);
+          this.applyWorksheet(ws);
+          this.flash(then === 'approve' ? 'Saved and approved' : 'Results saved');
+          if (then === 'print') this.openPrint();
+        },
+        error: (e) => {
+          this.saving.set(false);
+          this.fail(e);
+        },
+      });
+  }
+
+  unapprove() {
+    this.api.approveReport(this.orderId, false).subscribe({
+      next: (r) => {
+        this.order.update((o) => ({ ...o, ...r }));
+        this.flash('Approval removed');
       },
-      error: () => {
-        this.submitting.set(false);
-      },
+      error: (e) => this.fail(e),
     });
   }
 
-  statusLabel(status: string): string {
-    const map: Record<string, string> = {
-      ORDERED: 'Ordered',
-      SAMPLE_COLLECTED: 'Sample Collected',
-      IN_PROGRESS: 'In Progress',
-      COMPLETED: 'Completed',
-    };
-    return map[status] ?? status;
+  openPrint() {
+    if (this.dirty() && !confirm('You have unsaved changes. Print the last saved report anyway?'))
+      return;
+    this.router.navigate(['/print/lab-report', this.orderId]);
   }
 
-  statusBadge(status: string): string {
-    const map: Record<string, string> = {
-      ORDERED: 'badge-warning',
-      SAMPLE_COLLECTED: 'badge-info',
-      IN_PROGRESS: 'badge-info',
-      COMPLETED: 'badge-success',
-    };
-    return map[status] ?? 'badge-neutral';
-  }
-
-  goBack(): void {
+  back() {
+    if (this.dirty() && !confirm('Discard unsaved results?')) return;
     this.router.navigate(['/laboratory']);
+  }
+
+  statusLabel(s: string) {
+    return (
+      (
+        {
+          ORDERED: 'Ordered',
+          SAMPLE_COLLECTED: 'Sample collected',
+          IN_PROGRESS: 'In progress',
+          COMPLETED: 'Completed',
+        } as any
+      )[s] ?? s
+    );
+  }
+
+  private flash(msg: string) {
+    this.notice.set(msg);
+    setTimeout(() => this.notice.set(''), 2500);
+  }
+
+  private fail(e: any) {
+    this.loading.set(false);
+    const m = e?.error?.message;
+    this.error.set(Array.isArray(m) ? m.join(', ') : m || 'Something went wrong');
   }
 }

@@ -1,0 +1,267 @@
+<div class="toolbar no-print">
+  <button type="button" class="tb-btn" (click)="back()">← Back</button>
+  <label class="tb-toggle">
+    <input
+      type="checkbox"
+      [checked]="letterhead()"
+      (change)="letterhead.set($any($event.target).checked)"
+    />
+    Print with letterhead
+  </label>
+  @if (ws() && !approved()) {
+    <span class="tb-warn">Not approved yet. Prints as PROVISIONAL.</span>
+  }
+  @if (pages().length) {
+    <span class="tb-pages">{{ pages().length }} page(s)</span>
+  }
+  <span class="tb-spacer"></span>
+  <button
+    type="button"
+    class="tb-btn primary"
+    [disabled]="loading() || !!error() || measuring()"
+    (click)="print()"
+  >
+    Print / Save PDF
+  </button>
+</div>
+
+@if (loading()) {
+  <div class="state no-print">Loading report…</div>
+} @else if (error()) {
+  <div class="state err no-print">{{ error() }}</div>
+} @else if (ws(); as w) {
+  @let st = s();
+
+  <!-- ── Reusable pieces ── -->
+  <ng-template #patientBlock>
+    <div class="pblock-wrap">
+      <table class="pblock">
+        <tr>
+          <th>Patient name</th>
+          <td class="pname">{{ w.patient?.name }}</td>
+          <th>Lab no.</th>
+          <td>{{ w.order.labNo }}</td>
+        </tr>
+        <tr>
+          <th>Age / Gender</th>
+          <td>{{ w.patient?.ageText || '—' }} / {{ genderText(w.patient?.gender) }}</td>
+          <th>Registered</th>
+          <td>{{ w.order.createdAt | date: 'dd/MM/yyyy hh:mm a' }}</td>
+        </tr>
+        <tr>
+          <th>UHID</th>
+          <td>{{ w.patient?.uhid }}</td>
+          <th>Collected</th>
+          <td>{{ (w.order.sampleCollectedAt | date: 'dd/MM/yyyy hh:mm a') || '—' }}</td>
+        </tr>
+        <tr>
+          <th>Referred by</th>
+          <td>{{ w.order.orderedByDoctorName || w.patient?.referredByDoctorName || 'Self' }}</td>
+          <th>Reported</th>
+          <td>{{ (reportedAt() | date: 'dd/MM/yyyy hh:mm a') || '—' }}</td>
+        </tr>
+      </table>
+      @if (!approved()) {
+        <div class="provisional">PROVISIONAL REPORT</div>
+      }
+    </div>
+  </ng-template>
+
+  <ng-template #colHead>
+    <thead>
+      <tr class="cols">
+        <th class="c-test">Test description</th>
+        <th class="c-res">Result</th>
+        @if (showUnit()) {
+          <th class="c-unit">Unit</th>
+        }
+        <th class="c-ref">Biological ref. interval</th>
+        @if (showMethod()) {
+          <th class="c-meth">Method</th>
+        }
+      </tr>
+    </thead>
+  </ng-template>
+
+  <ng-template #row let-l let-i="i">
+    @switch (l.kind) {
+      @case ('category') {
+        <tr class="l-cat" [attr.data-i]="i">
+          <td [attr.colspan]="colCount()">{{ l.label }}</td>
+        </tr>
+      }
+      @case ('test') {
+        <tr class="l-test" [attr.data-i]="i">
+          <td [attr.colspan]="colCount()">
+            {{ l.label }}
+            @if (l.sample) {
+              <span class="meta">Sample: {{ l.sample }}</span>
+            }
+            @if (l.method) {
+              <span class="meta">Method: {{ l.method }}</span>
+            }
+          </td>
+        </tr>
+      }
+      @case ('group') {
+        <tr class="l-group" [attr.data-i]="i">
+          <td [attr.colspan]="colCount()">{{ l.label }}</td>
+        </tr>
+      }
+      @case ('subhead') {
+        <tr class="l-sub" [attr.data-i]="i">
+          <td [attr.colspan]="colCount()" [class.indent]="l.indent">{{ l.text }}</td>
+        </tr>
+      }
+      @case ('text') {
+        <tr class="l-text" [class.small]="l.small" [attr.data-i]="i">
+          <td [attr.colspan]="colCount()" [class.indent]="l.indent">{{ l.text }}</td>
+        </tr>
+      }
+      @case ('param') {
+        <tr class="l-param" [class.single]="l.single" [attr.data-i]="i">
+          <td class="c-test" [class.indent]="l.indent" [class.b]="l.bold || l.single">
+            {{ l.name }}
+          </td>
+          <td class="c-res" [class.abn]="isAbnormal(l.flag) && st.boldAbnormal">
+            {{ l.value }}
+            @if (flagText(l.flag)) {
+              <span class="flag">&nbsp;{{ flagText(l.flag) }}</span>
+            }
+          </td>
+          @if (showUnit()) {
+            <td class="c-unit">{{ l.unit }}</td>
+          }
+          <td class="c-ref">{{ l.range }}</td>
+          @if (showMethod()) {
+            <td class="c-meth">{{ l.method }}</td>
+          }
+        </tr>
+      }
+    }
+  </ng-template>
+
+  <ng-template #closing>
+    <div class="closing">
+      @if (st.endOfReportText) {
+        <div class="eor">{{ st.endOfReportText }}</div>
+      }
+      <div class="signs">
+        @for (sg of st.signatures; track $index) {
+          <div class="sign">
+            @if (sg.imageUrl) {
+              <img [src]="sg.imageUrl" alt="" />
+            } @else {
+              <div class="sign-space"></div>
+            }
+            <div class="sign-name">{{ sg.name }}</div>
+            @if (sg.designation) {
+              <div class="sign-desig">{{ sg.designation }}</div>
+            }
+          </div>
+        }
+      </div>
+      @if (approved()) {
+        <div class="verified">
+          Electronically verified by {{ w.order.approvedByName }} on
+          {{ w.order.approvedAt | date: 'dd/MM/yyyy hh:mm a' }}
+        </div>
+      }
+      @if (notes().length) {
+        <div class="notes">
+          @for (n of notes(); track $index) {
+            <div>{{ n }}</div>
+          }
+        </div>
+      }
+    </div>
+  </ng-template>
+
+  <!-- Hidden copy used to measure row heights -->
+  @if (measuring()) {
+    <div
+      class="measure"
+      #measure
+      [style.font-family]="st.fontFamily + ', Arial, sans-serif'"
+      [style.font-size.pt]="st.fontSizePt"
+      [style.--margin]="st.marginMm + 'mm'"
+    >
+      <div class="mm-probe"></div>
+      <ng-container [ngTemplateOutlet]="patientBlock" />
+      <table class="report">
+        <ng-container [ngTemplateOutlet]="colHead" />
+        <tbody>
+          @for (l of lines(); track $index) {
+            <ng-container
+              [ngTemplateOutlet]="row"
+              [ngTemplateOutletContext]="{ $implicit: l, i: $index }"
+            />
+          }
+        </tbody>
+      </table>
+      <ng-container [ngTemplateOutlet]="closing" />
+    </div>
+  }
+
+  <!-- Pages -->
+  @for (page of pages(); track $index; let p = $index; let last = $last) {
+    <div
+      class="page"
+      [style.font-family]="st.fontFamily + ', Arial, sans-serif'"
+      [style.font-size.pt]="st.fontSizePt"
+      [style.--margin]="st.marginMm + 'mm'"
+    >
+      <div class="lh-header" [style.height.mm]="st.headerHeightMm">
+        @if (letterhead()) {
+          @if (st.headerImage) {
+            <img [src]="st.headerImage" alt="" />
+          } @else {
+            <div class="text-head">
+              <div class="lab-name">{{ st.labName }}</div>
+              <div class="lab-addr">{{ st.labAddress }}</div>
+              <div class="lab-addr">{{ st.labContact }}</div>
+            </div>
+          }
+        }
+      </div>
+
+      <div
+        class="page-body"
+        [style.top.mm]="st.headerHeightMm"
+        [style.bottom.mm]="st.footerHeightMm"
+      >
+        <ng-container [ngTemplateOutlet]="patientBlock" />
+        <table class="report">
+          <ng-container [ngTemplateOutlet]="colHead" />
+          <tbody>
+            @for (i of page; track i) {
+              <ng-container
+                [ngTemplateOutlet]="row"
+                [ngTemplateOutletContext]="{ $implicit: line(i), i: i }"
+              />
+            }
+            @if (!lines().length && p === 0) {
+              <tr>
+                <td [attr.colspan]="colCount()" class="empty">
+                  No results have been entered for this order yet.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        @if (last) {
+          <ng-container [ngTemplateOutlet]="closing" />
+        } @else {
+          <div class="contd">Continued on next page…</div>
+        }
+        <div class="page-no">Page {{ p + 1 }} of {{ pages().length }}</div>
+      </div>
+
+      <div class="lh-footer" [style.height.mm]="st.footerHeightMm">
+        @if (letterhead() && st.footerImage) {
+          <img [src]="st.footerImage" alt="" />
+        }
+      </div>
+    </div>
+  }
+}

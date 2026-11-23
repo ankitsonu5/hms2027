@@ -4,7 +4,8 @@ import { ModulePlaceholderPage } from './module-placeholder.page';
 import { RegisterPatientPage } from './register-patient.page';
 import { AppointmentListPage } from './appointment-list.page';
 import { AppointmentCalendarPage } from './appointment-calendar.page';
-import { TestListPage } from './test-list.page';
+import { TestListPage } from './test-master/test-list.page';
+import { LabMastersPage } from './test-master/lab-masters.page';
 import { BillingListPage } from '../billing/billing-list.page';
 import { InvoicePage } from '../billing/invoice.page';
 import { BillingFormPage } from '../billing/billing-form.page';
@@ -21,6 +22,7 @@ import { CancelledTestsPage } from './cancelled-tests.page';
 import { PendingReportsPage } from './pending-reports.page';
 import { DepartmentListPage } from './department-list.page';
 import { SmartReportSettingsPage } from './smart-report-settings.page';
+import { ClinicianListPage } from './clinician-list.page';
 
 /** Menu paths that have a real page; everything else falls back to the placeholder. */
 const IMPLEMENTED: Record<string, any> = {
@@ -43,8 +45,10 @@ const IMPLEMENTED: Record<string, any> = {
   '/test-profile-management/bill-settings': BillSettingsPage,
   '/test-profile-management/invoice-settings': InvoiceSettingsPage,
   '/test-profile-management/cancelled-tests': CancelledTestsPage,
+  '/test-profile-management/other-settings': LabMastersPage,
   '/registration/report-print/pending': PendingReportsPage,
   '/smart-report-settings': SmartReportSettingsPage,
+  '/clinician-management': ClinicianListPage,
 };
 
 const strip = (p: string) => p.replace(/^\//, '');
@@ -87,6 +91,12 @@ function routesFor(menu: AdminGroup[]): Routes {
 }
 
 export const ADMIN_ROUTES: Routes = [
+  // Test editor (create / edit). Listed before the menu-derived routes so it wins.
+  {
+    path: 'test-profile-management/test-list/:id',
+    loadComponent: () => import('./test-master/test-editor.page').then((m) => m.TestEditorPage),
+    data: { title: 'Test', parent: 'Test/Profile Management' },
+  },
   ...routesFor(ADMIN_MENU),
   ...routesFor(REGISTRATION_MENU),
   ...routesFor(ACCESSION_MENU),

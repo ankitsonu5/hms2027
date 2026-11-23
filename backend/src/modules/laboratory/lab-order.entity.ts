@@ -29,6 +29,10 @@ export class LabOrder {
   @Column()
   patientId: string;
 
+  /** Running lab number printed on the report and receipt. */
+  @Column({ type: 'int', generated: 'increment' })
+  labNo: number;
+
   @Column({ nullable: true })
   encounterId: string;
 
@@ -76,6 +80,22 @@ export class LabOrder {
 
   @Column({ default: 'CASH' })
   paymentMethod: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  resultEnteredAt: Date;
+
+  @Column({ nullable: true })
+  resultEnteredByName: string;
+
+  /** Set when the pathologist approves the report; the printout shows it as verified. */
+  @Column({ type: 'timestamp', nullable: true })
+  approvedAt: Date | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  approvedByName: string | null;
+
+  @Column({ type: 'int', default: 0 })
+  printCount: number;
 
   @Column({ default: true })
   isActive: boolean;

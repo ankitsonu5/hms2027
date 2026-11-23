@@ -1,308 +1,567 @@
-import { Component, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { LabApiService } from '../../core/services/lab-api.service';
 
+interface Signature {
+  name: string;
+  designation?: string;
+  imageUrl?: string;
+}
+
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+
+/** Letterhead, layout and signatures of the printed lab report. */
 @Component({
-  selector: 'app-report-settings',
+  selector: 'hms-report-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
+  template: `
+    <div class="rs-page">
+      <div class="rs-head">
+        <div>
+          <h1>Report settings</h1>
+          <p class="sub">
+            How the printed lab report looks. Changes apply to every report printed after saving.
+          </p>
+        </div>
+        <div class="acts">
+          @if (saved()) {
+            <span class="ok">Saved</span>
+          }
+          <button
+            type="button"
+            class="btn btn-primary"
+            [disabled]="saving() || !s()"
+            (click)="save()"
+          >
+            {{ saving() ? 'Saving…' : 'Save settings' }}
+          </button>
+        </div>
+      </div>
+      @if (error()) {
+        <div class="alert">{{ error() }}</div>
+      }
+
+      @if (s(); as st) {
+        <section class="card">
+          <h2>Letterhead</h2>
+          <div class="grid2">
+            <div>
+              <span class="lbl">Header image (full width, printed at the top of every page)</span>
+              <div class="img-box" [style.height.px]="90">
+                @if (st.headerImage) {
+                  <img [src]="st.headerImage" alt="Header" />
+                } @else {
+                  <span class="muted"
+                    >No image – the lab name and address below are printed instead</span
+                  >
+                }
+              </div>
+              <div class="row">
+                <label class="btn btn-secondary btn-sm file"
+                  >Upload<input type="file" accept="image/*" (change)="pick($event, 'headerImage')"
+                /></label>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-sm"
+                  (click)="st.headerImage = '/access-pathlab-header.jpeg'"
+                >
+                  Use default
+                </button>
+                @if (st.headerImage) {
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm"
+                    (click)="st.headerImage = null"
+                  >
+                    Remove
+                  </button>
+                }
+              </div>
+            </div>
+            <div>
+              <span class="lbl">Footer image (optional, bottom of every page)</span>
+              <div class="img-box" [style.height.px]="90">
+                @if (st.footerImage) {
+                  <img [src]="st.footerImage" alt="Footer" />
+                } @else {
+                  <span class="muted">No footer image</span>
+                }
+              </div>
+              <div class="row">
+                <label class="btn btn-secondary btn-sm file"
+                  >Upload<input type="file" accept="image/*" (change)="pick($event, 'footerImage')"
+                /></label>
+                @if (st.footerImage) {
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm"
+                    (click)="st.footerImage = null"
+                  >
+                    Remove
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+          <div class="grid4">
+            <label
+              >Header space (mm)<input
+                class="form-control"
+                type="number"
+                min="0"
+                max="120"
+                [(ngModel)]="st.headerHeightMm"
+            /></label>
+            <label
+              >Footer space (mm)<input
+                class="form-control"
+                type="number"
+                min="0"
+                max="80"
+                [(ngModel)]="st.footerHeightMm"
+            /></label>
+            <label class="chk span2"
+              ><input type="checkbox" [(ngModel)]="st.letterheadByDefault" /> Print with letterhead
+              by default (untick when using pre-printed stationery)</label
+            >
+          </div>
+          <div class="grid3">
+            <label>Lab name<input class="form-control" [(ngModel)]="st.labName" /></label>
+            <label>Address<input class="form-control" [(ngModel)]="st.labAddress" /></label>
+            <label>Phone / email<input class="form-control" [(ngModel)]="st.labContact" /></label>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Layout</h2>
+          <div class="grid4">
+            <label
+              >Font
+              <select class="form-control" [(ngModel)]="st.fontFamily">
+                @for (f of fonts; track f) {
+                  <option [value]="f">{{ f }}</option>
+                }
+              </select>
+            </label>
+            <label
+              >Font size (pt)<input
+                class="form-control"
+                type="number"
+                min="7"
+                max="14"
+                step="0.5"
+                [(ngModel)]="st.fontSizePt"
+            /></label>
+            <label
+              >Side margin (mm)<input
+                class="form-control"
+                type="number"
+                min="0"
+                max="40"
+                [(ngModel)]="st.marginMm"
+            /></label>
+            <label
+              >Abnormal value mark
+              <select class="form-control" [(ngModel)]="st.flagStyle">
+                <option value="HL">H / L next to value</option>
+                <option value="ARROW">↑ / ↓ next to value</option>
+                <option value="BOLD">Bold only</option>
+              </select>
+            </label>
+          </div>
+          <div class="checks">
+            <label class="chk"
+              ><input type="checkbox" [(ngModel)]="st.showUnitColumn" /> Unit column</label
+            >
+            <label class="chk"
+              ><input type="checkbox" [(ngModel)]="st.showMethodColumn" /> Method column</label
+            >
+            <label class="chk"
+              ><input type="checkbox" [(ngModel)]="st.boldAbnormal" /> Bold abnormal values</label
+            >
+            <label class="chk"
+              ><input type="checkbox" [(ngModel)]="st.showSampleType" /> Show sample type</label
+            >
+            <label class="chk"
+              ><input type="checkbox" [(ngModel)]="st.departmentOnNewPage" /> Each department on a
+              new page</label
+            >
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Signatures</h2>
+          <p class="muted small">Printed at the end of the report, left to right.</p>
+          <div class="signs">
+            @for (sg of st.signatures; track $index; let i = $index) {
+              <div class="sign">
+                <div class="img-box sig">
+                  @if (sg.imageUrl) {
+                    <img [src]="sg.imageUrl" alt="Signature" />
+                  } @else {
+                    <span class="muted">No signature image</span>
+                  }
+                </div>
+                <div class="row">
+                  <label class="btn btn-secondary btn-sm file"
+                    >Upload<input type="file" accept="image/*" (change)="pickSignature($event, sg)"
+                  /></label>
+                  @if (sg.imageUrl) {
+                    <button type="button" class="btn btn-ghost btn-sm" (click)="sg.imageUrl = ''">
+                      Remove image
+                    </button>
+                  }
+                </div>
+                <label
+                  >Name<input class="form-control" [(ngModel)]="sg.name" placeholder="Dr. …"
+                /></label>
+                <label
+                  >Designation / qualification<input
+                    class="form-control"
+                    [(ngModel)]="sg.designation"
+                    placeholder="MD (Pathology)"
+                /></label>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-sm danger"
+                  (click)="removeSignature(i)"
+                >
+                  Remove signature
+                </button>
+              </div>
+            }
+            <button type="button" class="add-sign" (click)="addSignature()">+ Add signature</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Closing text</h2>
+          <div class="grid2">
+            <label
+              >End of report line<input class="form-control" [(ngModel)]="st.endOfReportText"
+            /></label>
+            <label
+              >Footer notes (one per line)<textarea
+                class="form-control"
+                rows="3"
+                [(ngModel)]="st.footerNotes"
+              ></textarea>
+            </label>
+          </div>
+        </section>
+      } @else {
+        <div class="card muted">Loading…</div>
+      }
+    </div>
+  `,
   styles: [
     `
-      .page-container {
-        padding: 24px;
+      .rs-page {
+        padding: 20px 24px 40px;
         background: #f8fafc;
         min-height: 100vh;
-      }
-      .page-header {
-        margin-bottom: 24px;
-      }
-      .page-title {
-        font-size: 20px;
-        font-weight: 600;
-        color: #1e293b;
-        margin: 0;
-      }
-      .main-tabs {
         display: flex;
-        border-bottom: 2px solid #e2e8f0;
-        margin-bottom: 24px;
+        flex-direction: column;
+        gap: 14px;
+        max-width: 1100px;
       }
-      .main-tab {
-        padding: 12px 24px;
+      .rs-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      h1 {
+        margin: 0;
+        font-family: var(--font-display);
+        font-size: 22px;
+      }
+      .sub {
+        margin: 4px 0 0;
+        color: var(--text-secondary);
+        font-size: 13px;
+      }
+      .acts {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .ok {
+        color: var(--clr-success-600);
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .alert {
+        background: var(--clr-danger-100);
+        color: #991b1b;
+        padding: 10px 14px;
+        border-radius: 8px;
         font-size: 14px;
-        font-weight: 500;
-        color: #64748b;
-        cursor: pointer;
-        position: relative;
       }
-      .main-tab.active {
-        color: #3b82f6;
+      .card {
+        background: #fff;
+        border: 1px solid var(--border-default);
+        border-radius: 10px;
+        padding: 18px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
       }
-      .main-tab.active::after {
-        content: '';
-        position: absolute;
-        bottom: -2px;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background: #3b82f6;
+      h2 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 700;
       }
-
-      .form-grid {
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .grid3 {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 24px;
-        background: #fff;
-        padding: 24px;
-        border-radius: 8px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        margin-bottom: 24px;
+        gap: 12px;
       }
-      .form-group {
+      .grid4 {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        align-items: end;
+      }
+      .span2 {
+        grid-column: span 2;
+      }
+      label,
+      .lbl {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--text-secondary);
+      }
+      .chk {
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+        text-transform: none;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-primary);
+        letter-spacing: 0;
+      }
+      .checks {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 24px;
+      }
+      .img-box {
+        border: 1px dashed var(--border-strong);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #fafafa;
+        overflow: hidden;
+        margin-top: 4px;
+      }
+      .img-box img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+      }
+      .img-box.sig {
+        height: 70px;
+      }
+      .row {
+        display: flex;
+        gap: 6px;
+        margin-top: 6px;
+        align-items: center;
+      }
+      .file {
+        position: relative;
+        overflow: hidden;
+      }
+      .file input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .muted {
+        color: var(--text-muted);
+        font-size: 12px;
+        text-transform: none;
+        font-weight: 400;
+        text-align: center;
+        padding: 8px;
+      }
+      .small {
+        margin: 0;
+        text-align: left;
+        padding: 0;
+      }
+      .signs {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 14px;
+      }
+      .sign {
+        border: 1px solid var(--border-default);
+        border-radius: 8px;
+        padding: 12px;
         display: flex;
         flex-direction: column;
         gap: 8px;
       }
-      .form-group.full-width {
-        grid-column: span 3;
+      .danger {
+        color: var(--clr-danger-600);
+        align-self: flex-start;
       }
-      .form-group label {
-        font-size: 13px;
-        color: #64748b;
-      }
-      .form-group label .req {
-        color: #ef4444;
-      }
-      .form-control {
-        padding: 8px 12px;
-        border: 1px solid #cbd5e1;
-        border-radius: 4px;
-        font-size: 13px;
-        outline: none;
-      }
-      .form-control:focus {
-        border-color: #3b82f6;
-      }
-      .select-wrap {
-        position: relative;
-        display: flex;
-      }
-      .select-wrap select {
-        width: 100%;
-        appearance: none;
-        padding-right: 32px;
-      }
-      .select-wrap .icon {
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        pointer-events: none;
-        color: #94a3b8;
-      }
-      
-      .checkbox-group {
-        display: flex;
-        gap: 24px;
-        margin-top: 16px;
-      }
-      .checkbox-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 13px;
-        color: #334155;
-      }
-
-      .accordion-panel {
-        background: #f1f5f9;
-        border-radius: 4px;
-        margin-bottom: 12px;
-      }
-      .accordion-header {
-        padding: 16px;
-        font-size: 13px;
-        font-weight: 500;
-        color: #475569;
+      .add-sign {
+        border: 1px dashed var(--clr-primary-500);
+        background: var(--clr-primary-50);
+        color: var(--clr-primary-700);
+        border-radius: 8px;
         cursor: pointer;
-        display: flex;
-        justify-content: space-between;
+        font-weight: 600;
+        min-height: 120px;
       }
-    `
+      @media (max-width: 800px) {
+        .grid2,
+        .grid3,
+        .grid4 {
+          grid-template-columns: 1fr;
+        }
+        .span2 {
+          grid-column: auto;
+        }
+      }
+    `,
   ],
-  template: `
-    <div class="page-container">
-      <div class="page-header">
-        <h1 class="page-title">Report Settings</h1>
-      </div>
-
-      <div class="main-tabs">
-        <div class="main-tab" [class.active]="activeTab() === 'SETTINGS'" (click)="activeTab.set('SETTINGS')">
-          Report Settings
-        </div>
-        <div class="main-tab" [class.active]="activeTab() === 'ASSIGN'" (click)="activeTab.set('ASSIGN')">
-          Assign Settings To Tests
-        </div>
-      </div>
-
-      @if (activeTab() === 'SETTINGS') {
-        <div class="form-grid">
-          <div class="form-group full-width">
-            <label>Setting Name <span class="req">*</span></label>
-            <input type="text" class="form-control" placeholder="Setting Name" />
-          </div>
-
-          <!-- Row 1 -->
-          <div class="form-group">
-            <label>Paper Size</label>
-            <div class="select-wrap">
-              <select class="form-control">
-                <option>A4</option>
-              </select>
-              <span class="icon">▼</span>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Patient Info <span class="req">*</span></label>
-            <input type="text" class="form-control" value="150" />
-          </div>
-          <div class="form-group">
-            <label>Font Type <span class="req">*</span></label>
-            <div class="select-wrap">
-              <select class="form-control">
-                <option>BookmanOld</option>
-              </select>
-              <span class="icon">▼</span>
-            </div>
-          </div>
-
-          <!-- Row 2 -->
-          <div class="form-group">
-            <label>Font Size <span class="req">*</span></label>
-            <input type="number" class="form-control" value="10" />
-          </div>
-          <div class="form-group">
-            <label>Primary Sign Position <span class="req">*</span></label>
-            <div class="select-wrap">
-              <select class="form-control">
-                <option>Right</option>
-              </select>
-              <span class="icon">▼</span>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Max Approval <span class="req">*</span></label>
-            <input type="number" class="form-control" value="2" />
-          </div>
-
-          <!-- Row 3 -->
-          <div class="form-group">
-            <label>Header Size <span class="req">*</span></label>
-            <input type="number" class="form-control" value="85" />
-          </div>
-          <div class="form-group">
-            <label>Vertical Spacing <span class="req">*</span></label>
-            <div class="select-wrap">
-              <select class="form-control">
-                <option>Compressed</option>
-              </select>
-              <span class="icon">▼</span>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Min Approval <span class="req">*</span></label>
-            <input type="number" class="form-control" value="1" />
-          </div>
-
-          <!-- Row 4 -->
-          <div class="form-group">
-            <label>Sign Size <span class="req">*</span></label>
-            <input type="number" class="form-control" value="100" />
-          </div>
-          <div class="form-group">
-            <label>Page No X <span class="req">*</span></label>
-            <input type="number" class="form-control" value="519" />
-          </div>
-          <div class="form-group">
-            <label>Date Format <span class="req">*</span></label>
-            <div class="select-wrap">
-              <select class="form-control">
-                <option>Dec 01, 2015, 12:00 a.m.</option>
-              </select>
-              <span class="icon">▼</span>
-            </div>
-          </div>
-
-          <!-- Row 5 -->
-          <div class="form-group">
-            <label>Footer Size <span class="req">*</span></label>
-            <input type="number" class="form-control" value="78" />
-          </div>
-          <div class="form-group">
-            <label>Page No Y <span class="req">*</span></label>
-            <input type="number" class="form-control" value="13" />
-          </div>
-          <div class="form-group">
-            <label>Paper Margin <span class="req">*</span></label>
-            <input type="number" class="form-control" value="40" />
-          </div>
-
-          <!-- Row 6 -->
-          <div class="form-group">
-            <label>Template Name <span class="req">*</span></label>
-            <div class="select-wrap">
-              <select class="form-control">
-                <option>PDF with underlined test labels...</option>
-              </select>
-              <span class="icon">▼</span>
-            </div>
-          </div>
-          <div class="form-group full-width" style="grid-column: span 2;">
-            <label>End of Report Text</label>
-            <input type="text" class="form-control" value="**END OF REPORT**" />
-          </div>
-
-          <div class="form-group full-width">
-            <div class="checkbox-group">
-              <label class="checkbox-item">
-                <input type="checkbox" /> Show PDF Header
-              </label>
-              <label class="checkbox-item">
-                <input type="checkbox" /> Show PDF Footer
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <div class="accordion-panel">
-          <div class="accordion-header" (click)="watermarkOpen.set(!watermarkOpen())">
-            Upload Watermark
-            <span>{{ watermarkOpen() ? '▲' : '▼' }}</span>
-          </div>
-          @if (watermarkOpen()) {
-            <div style="padding: 16px; background: #fff;">
-              <input type="file" />
-            </div>
-          }
-        </div>
-
-        <div class="accordion-panel">
-          <div class="accordion-header" (click)="accreditationOpen.set(!accreditationOpen())">
-            Upload Accreditation Image
-            <span>{{ accreditationOpen() ? '▲' : '▼' }}</span>
-          </div>
-          @if (accreditationOpen()) {
-            <div style="padding: 16px; background: #fff;">
-              <input type="file" />
-            </div>
-          }
-        </div>
-      }
-    </div>
-  `
 })
-export class ReportSettingsPage {
-  activeTab = signal<'SETTINGS' | 'ASSIGN'>('SETTINGS');
-  watermarkOpen = signal(false);
-  accreditationOpen = signal(false);
+export class ReportSettingsPage implements OnInit {
+  private api = inject(LabApiService);
+
+  readonly fonts = [
+    'Arial',
+    'Calibri',
+    'Helvetica',
+    'Times New Roman',
+    'Georgia',
+    'Verdana',
+    'Tahoma',
+  ];
+  s = signal<any>(null);
+  saving = signal(false);
+  saved = signal(false);
+  error = signal('');
+
+  ngOnInit() {
+    this.api.getReportSettings().subscribe({
+      next: (s) =>
+        this.s.set({ ...s, fontSizePt: Number(s.fontSizePt), signatures: s.signatures ?? [] }),
+      error: (e) => this.error.set(e?.error?.message || 'Could not load settings'),
+    });
+  }
+
+  private readImage(event: Event, apply: (dataUrl: string) => void) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    if (file.size > MAX_IMAGE_BYTES) {
+      this.error.set('Image is larger than 2 MB. Please use a smaller / compressed image.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      apply(reader.result as string);
+      this.s.update((s) => ({ ...s }));
+      this.error.set('');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  pick(event: Event, field: 'headerImage' | 'footerImage') {
+    this.readImage(event, (url) => (this.s()[field] = url));
+  }
+
+  pickSignature(event: Event, sg: Signature) {
+    this.readImage(event, (url) => (sg.imageUrl = url));
+  }
+
+  addSignature() {
+    this.s.update((s) => ({
+      ...s,
+      signatures: [...s.signatures, { name: '', designation: '', imageUrl: '' }],
+    }));
+  }
+
+  removeSignature(i: number) {
+    this.s.update((s) => ({
+      ...s,
+      signatures: s.signatures.filter((_: Signature, idx: number) => idx !== i),
+    }));
+  }
+
+  save() {
+    const st = this.s();
+    const num = (v: any, d: number) =>
+      v === '' || v == null || Number.isNaN(Number(v)) ? d : Number(v);
+    const body = {
+      headerImage: st.headerImage || undefined,
+      footerImage: st.footerImage || undefined,
+      headerHeightMm: Math.round(num(st.headerHeightMm, 38)),
+      footerHeightMm: Math.round(num(st.footerHeightMm, 18)),
+      letterheadByDefault: !!st.letterheadByDefault,
+      labName: st.labName ?? '',
+      labAddress: st.labAddress ?? '',
+      labContact: st.labContact ?? '',
+      marginMm: Math.round(num(st.marginMm, 12)),
+      fontSizePt: num(st.fontSizePt, 10),
+      fontFamily: st.fontFamily,
+      showMethodColumn: !!st.showMethodColumn,
+      showUnitColumn: !!st.showUnitColumn,
+      flagStyle: st.flagStyle,
+      boldAbnormal: !!st.boldAbnormal,
+      showSampleType: !!st.showSampleType,
+      departmentOnNewPage: !!st.departmentOnNewPage,
+      endOfReportText: st.endOfReportText ?? '',
+      footerNotes: st.footerNotes ?? '',
+      signatures: (st.signatures as Signature[])
+        .filter((g) => g.name?.trim())
+        .map((g) => ({
+          name: g.name.trim(),
+          designation: g.designation?.trim() || undefined,
+          imageUrl: g.imageUrl || undefined,
+        })),
+    };
+    // Removing an image is sent as an explicit null so the server clears it.
+    const payload: any = {
+      ...body,
+      headerImage: st.headerImage || null,
+      footerImage: st.footerImage || null,
+    };
+    this.saving.set(true);
+    this.error.set('');
+    this.api.updateReportSettings(payload).subscribe({
+      next: (s) => {
+        this.saving.set(false);
+        this.s.set({ ...s, fontSizePt: Number(s.fontSizePt), signatures: s.signatures ?? [] });
+        this.saved.set(true);
+        setTimeout(() => this.saved.set(false), 2500);
+      },
+      error: (e) => {
+        this.saving.set(false);
+        const m = e?.error?.message;
+        this.error.set(Array.isArray(m) ? m.join(', ') : m || 'Could not save settings');
+      },
+    });
+  }
 }

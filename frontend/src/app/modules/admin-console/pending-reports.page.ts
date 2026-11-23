@@ -1,3 +1,4 @@
+import { Router } from '@angular/router';
 import { Component, signal, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LabApiService } from '../../core/services/lab-api.service';
@@ -539,6 +540,7 @@ export class PendingReportsPage implements OnInit {
   private labApi = inject(LabApiService);
   private patientApi = inject(PatientApiService);
   private orgApi = inject(OrganizationApiService);
+  private router = inject(Router);
 
   reports = signal<any[]>([]);
   loading = signal(false);
@@ -590,7 +592,12 @@ export class PendingReportsPage implements OnInit {
     });
   }
 
+  /** Opens the full printable report (letterhead, all parameters, signatures). */
   openPreview(report: any) {
+    this.router.navigate(['/print/lab-report', report.id]);
+  }
+
+  openInlinePreview(report: any) {
     this.selectedReport.set(report);
     this.loadingResults.set(true);
     

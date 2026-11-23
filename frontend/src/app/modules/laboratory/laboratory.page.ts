@@ -396,6 +396,9 @@ import { catchError } from 'rxjs/operators';
                         <button class="btn btn-ghost" (click)="editOrder(order.id)">Edit</button>
                         <button class="btn btn-ghost" (click)="viewBill(order.id)">Bill</button>
                         <button class="btn btn-ghost" (click)="enterResults(order.id)">Results</button>
+                        @if (order.status === 'IN_PROGRESS' || order.status === 'COMPLETED') {
+                          <button class="btn btn-ghost" (click)="printReport(order.id)">Report</button>
+                        }
                         <button class="btn btn-danger-ghost" (click)="deleteOrder(order.id)">Delete</button>
                       </td>
                     </tr>
@@ -500,6 +503,10 @@ export class LaboratoryPage implements OnInit {
         error: () => alert('Failed to delete order.')
       });
     }
+  }
+
+  printReport(id: string): void {
+    this.router.navigate(['/print/lab-report', id]);
   }
 
   enterResults(id: string): void {

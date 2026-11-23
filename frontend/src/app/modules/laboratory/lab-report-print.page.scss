@@ -1,0 +1,360 @@
+:host {
+  display: block;
+  background: #e5e7eb;
+  min-height: 100vh;
+  padding-bottom: 40px;
+  color: #000;
+}
+
+/* ── screen toolbar ── */
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 20px;
+  background: #fff;
+  border-bottom: 1px solid #d1d5db;
+  font-family: var(--font-body, sans-serif);
+  font-size: 14px;
+}
+.tb-btn {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  padding: 7px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  &.primary {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+    font-weight: 600;
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
+.tb-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.tb-warn {
+  color: #b45309;
+  font-weight: 600;
+  font-size: 13px;
+}
+.tb-pages {
+  color: #475569;
+  font-size: 13px;
+}
+.tb-spacer {
+  flex: 1;
+}
+.state {
+  text-align: center;
+  padding: 60px;
+  font-family: var(--font-body, sans-serif);
+  &.err {
+    color: #b91c1c;
+  }
+}
+
+/* ── pages ── */
+.page,
+.measure {
+  --margin: 12mm;
+  width: 210mm;
+  box-sizing: border-box;
+  line-height: 1.35;
+  background: #fff;
+}
+.page {
+  position: relative;
+  height: 297mm;
+  margin: 20px auto 0;
+  box-shadow: 0 4px 18px rgb(0 0 0 / 0.15);
+  overflow: hidden;
+}
+.measure {
+  position: absolute;
+  left: -10000px;
+  top: 0;
+  visibility: hidden;
+  padding: 0 var(--margin);
+}
+.mm-probe {
+  height: 100mm;
+  width: 1px;
+  position: absolute;
+}
+.lh-header,
+.lh-footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  overflow: hidden;
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+}
+.lh-header {
+  top: 0;
+  img {
+    object-position: center top;
+  }
+}
+.lh-footer {
+  bottom: 0;
+  img {
+    object-position: center bottom;
+  }
+}
+.text-head {
+  text-align: center;
+  padding-top: 8mm;
+  .lab-name {
+    font-size: 18pt;
+    font-weight: 700;
+  }
+  .lab-addr {
+    font-size: 9pt;
+    color: #333;
+  }
+}
+.page-body {
+  position: absolute;
+  left: var(--margin);
+  right: var(--margin);
+}
+
+/* patient block */
+.pblock-wrap {
+  padding-bottom: 4px;
+}
+.pblock {
+  width: 100%;
+  border-collapse: collapse;
+  border-top: 1.5px solid #000;
+  border-bottom: 1.5px solid #000;
+  font-size: 0.95em;
+  th {
+    font-weight: 600;
+    width: 17%;
+    white-space: nowrap;
+    padding: 2px 4px;
+    text-align: left;
+  }
+  td {
+    width: 33%;
+    padding: 2px 4px;
+  }
+  th::after {
+    content: ':';
+    float: right;
+  }
+}
+.pname {
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.provisional {
+  text-align: center;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: #b45309;
+  font-size: 0.9em;
+  padding-top: 2px;
+}
+
+/* results table */
+.report {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  td,
+  th {
+    padding: 2px 4px;
+    vertical-align: top;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+}
+.cols th {
+  border-bottom: 1px solid #000;
+  font-size: 0.9em;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 4px;
+}
+.c-test {
+  width: 36%;
+}
+.c-res {
+  width: 16%;
+}
+.c-unit {
+  width: 12%;
+}
+.c-ref {
+  width: 22%;
+  white-space: pre-line;
+}
+.c-meth {
+  width: 14%;
+  font-size: 0.85em;
+  color: #333;
+}
+.l-cat td {
+  text-align: center;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  letter-spacing: 0.06em;
+  padding-top: 10px;
+  padding-bottom: 4px;
+}
+.l-test td {
+  font-weight: 700;
+  padding-top: 8px;
+  text-transform: uppercase;
+}
+.meta {
+  font-weight: 400;
+  font-size: 0.85em;
+  text-transform: none;
+  margin-left: 10px;
+  color: #333;
+}
+.l-group td {
+  font-weight: 700;
+  font-style: italic;
+  padding-left: 10px;
+  padding-top: 5px;
+}
+.l-sub td {
+  font-weight: 600;
+  padding-top: 6px;
+}
+.l-param.single td {
+  padding-top: 8px;
+}
+.l-text td {
+  white-space: pre-wrap;
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
+.l-text.small td {
+  font-size: 0.85em;
+  font-style: italic;
+  color: #333;
+}
+.indent {
+  padding-left: 18px !important;
+}
+.b,
+.abn,
+.flag {
+  font-weight: 700;
+}
+.empty {
+  text-align: center;
+  padding: 30px !important;
+  color: #555;
+}
+
+/* page furniture */
+.contd {
+  text-align: right;
+  font-size: 0.8em;
+  font-style: italic;
+  color: #555;
+  margin-top: 4px;
+}
+.page-no {
+  position: absolute;
+  bottom: 1mm;
+  right: 0;
+  font-size: 0.8em;
+  color: #333;
+}
+
+/* closing */
+.closing {
+  padding-top: 14px;
+}
+.eor {
+  text-align: center;
+  font-size: 0.9em;
+  margin-bottom: 8px;
+}
+.signs {
+  display: flex;
+  justify-content: flex-end;
+  gap: 40px;
+  margin-top: 6px;
+}
+.sign {
+  text-align: center;
+  min-width: 45mm;
+  img {
+    height: 14mm;
+    max-width: 50mm;
+    object-fit: contain;
+  }
+}
+.sign-space {
+  height: 14mm;
+}
+.sign-name {
+  font-weight: 700;
+  border-top: 1px solid #000;
+  padding-top: 2px;
+}
+.sign-desig {
+  font-size: 0.85em;
+}
+.verified {
+  font-size: 0.8em;
+  color: #333;
+  margin-top: 6px;
+}
+.notes {
+  font-size: 0.8em;
+  margin-top: 6px;
+  color: #333;
+}
+
+/* ── print ── */
+@page {
+  size: A4;
+  margin: 0;
+}
+@media print {
+  :host {
+    background: none;
+    padding: 0;
+  }
+  .no-print,
+  .measure {
+    display: none !important;
+  }
+  .page {
+    margin: 0;
+    box-shadow: none;
+    break-after: page;
+    page-break-after: always;
+  }
+  .page:last-of-type {
+    break-after: auto;
+    page-break-after: auto;
+  }
+}

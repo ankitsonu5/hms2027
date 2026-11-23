@@ -4,11 +4,12 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, FormArray, Validators } fr
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { OpdApiService } from '../../core/services/opd-api.service';
 import { PatientPickerComponent } from '../../shared/components/patient-picker.component';
+import { DoctorPickerComponent } from '../../shared/components/doctor-picker.component';
 
 @Component({
   selector: 'hms-opd-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule, PatientPickerComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule, PatientPickerComponent, DoctorPickerComponent],
   template: `
     <div class="opd-form-page">
       <!-- Header -->
@@ -46,21 +47,10 @@ import { PatientPickerComponent } from '../../shared/components/patient-picker.c
                 }
               </div>
               <div class="field">
-                <label class="field-label">Doctor ID</label>
-                <input
-                  type="text"
-                  formControlName="doctorId"
-                  class="form-control"
-                  placeholder="e.g. DOC-001"
-                />
-              </div>
-              <div class="field">
                 <label class="field-label">Doctor Name</label>
-                <input
-                  type="text"
+                <hms-doctor-picker
                   formControlName="doctorName"
-                  class="form-control"
-                  placeholder="Dr. Full Name"
+                  (picked)="form.patchValue({ doctorId: $event?.id ?? '' })"
                 />
               </div>
               <div class="field">
